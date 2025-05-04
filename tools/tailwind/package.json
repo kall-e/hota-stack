@@ -1,0 +1,19 @@
+{
+  "name": "@repo/tailwind-config",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo node_modules",
+    "format": "biome format .",
+    "lint": "biome lint ."
+  },
+  "exports": {
+    "./style.css": "./style.css"
+  },
+  "dependencies": {
+    "tailwindcss": "catalog:",
+    "tailwindcss-animate": "catalog:",
+    "tw-animate-css": "catalog:"
+  },
+  "devDependencies": {}
+}

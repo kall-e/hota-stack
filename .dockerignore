@@ -1,0 +1,24 @@
+**/.cache/
+**/.turbo/
+**/.turbo/turbo-*.log
+**/.DS_Store
+
+**/.env*
+
+**/dist/
+**/node_modules/
+**/out/
+
+# TypeScript
+**/tsconfig.tsbuildinfo
+
+# Vitest related
+**/coverage/
+**/.nyc_output/
+**/*.coverage.json
+**/coverage.json
+
+# Playwright related
+**/playwright-report/
+**/test-results/
+**/playwright/.cache/
