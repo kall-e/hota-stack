@@ -1,0 +1,21 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Component Development Guide
+
+UI components follow specific patterns throughout the project:
+
+- **Shared Components**: Located in [packages/ui/src/components](mdc:packages/ui/src/components), these are reusable across the entire application.
+  
+- **App-Specific Components**: Located in [apps/web/src/components](mdc:apps/web/src/components), these are specific to the web application.
+
+- **Feature Components**: Located within each feature directory (e.g., [apps/web/src/features/tweets/components](mdc:apps/web/src/features/tweets/components)), these are specific to a particular feature.
+
+When developing components:
+- Maintain clear component interfaces with proper TypeScript typing
+- Follow the composable component pattern for flexibility
+- Separate presentation from logic when appropriate
+- Store related hooks in appropriate locations ([packages/ui/src/hooks](mdc:packages/ui/src/hooks) for shared hooks)
+- Handle loading, error, and empty states consistently

@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Error Handling Structure Guide
+
+Error handling in the application is implemented in multiple places:
+
+- [features/errors/](mdc:apps/web/src/features/errors): Contains error-specific components and utility functions.
+- [routes/(errors)/](mdc:apps/web/src/routes/(errors)): Routes for error pages like 404, 500, etc.
+- [utils/](mdc:apps/web/src/utils): Contains error handling utilities, including validation error handling.
+
+Error boundaries are used throughout the application to catch and handle errors gracefully, providing user-friendly error messages while logging details for debugging purposes.

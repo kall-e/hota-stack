@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Configuration Files Guide
+
+Several key configuration files at the root of the project manage its structure, build process, and development environment:
+
+- **[biome.json](mdc:biome.json)**: Configures Biome, the project's linter and formatter. This file defines code style rules, formatting options, and linting checks to ensure code consistency and quality across the codebase.
+
+- **[compose.yaml](mdc:compose.yaml)** (or `docker-compose.yml`): Defines and configures the multi-container Docker applications for local development and services. This typically includes database services, backend servers, and other dependencies.
+
+- **[turbo.json](mdc:turbo.json)**: Configures Turborepo, the build system used for managing the monorepo. It defines the pipeline for tasks like building, testing, and linting, optimizing for speed and efficiency by caching outputs.
+
+- **[pnpm-workspace.yaml](mdc:pnpm-workspace.yaml)**: Defines the workspaces within the pnpm-managed monorepo. It tells pnpm where to find the different packages and applications that are part of this project.
+
+- **[package.json](mdc:package.json)**: The root `package.json` file, often used for global project scripts and devDependencies in a pnpm workspace setup.
+
+Understanding these files can be helpful for development, debugging build issues, and managing project dependencies and services.

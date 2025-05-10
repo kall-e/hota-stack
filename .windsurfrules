@@ -199,31 +199,79 @@
 ## Commit Message Conventions
 
 18. Commit Message Conventions:
-    - All contributors must follow the commit message conventions described in:
-      - docs/COMMIT_CONVENTIONS.md
-    - Summary of required format:
-      
-      Commit messages should follow the Conventional Commits specification:
-      
+    - Format Structure:
       ```
       <type>[optional scope]: <description>
-      
+
       [optional body]
-      
+
       [optional footer(s)]
       ```
-      
-      Allowed types:
-      - feat: A new feature
-      - fix: A bug fix
-      - docs: Documentation only changes
-      - style: Changes that do not affect the meaning of the code (white-space, formatting, etc)
-      - refactor: A code change that neither fixes a bug nor adds a feature
-      - perf: A code change that improves performance
-      - test: Adding missing tests or correcting existing tests
-      - build: Changes that affect the build system or external dependencies
-      - ci: Changes to CI configuration files and scripts
-      - chore: Other changes that don't modify `src` or `test` files
-      - revert: Reverts a previous commit
 
-    - For full details and examples, see docs/COMMIT_CONVENTIONS.md
+    - Types are categorized by their impact:
+      
+      API or UI Changes:
+      - feat: Adds a new feature or capability (triggers MINOR version)
+      - fix: Fixes a bug in existing functionality (triggers PATCH version)
+      
+      Code Quality:
+      - refactor: Rewrites/restructures code without changing behavior
+      - perf: Special type of refactor that improves performance
+      - style: Changes that don't affect code meaning (whitespace, formatting, etc.)
+      
+      Non-Code Changes:
+      - docs: Documentation only changes
+      - test: Adding or correcting tests
+      
+      Infrastructure:
+      - build: Changes affecting build system, dependencies, or project version
+      - ci: Changes to CI configuration and scripts
+      - chore: Other changes that don't modify src or test files
+
+    - Scope Guidelines:
+      - Must be a noun describing the section of codebase
+      - Contained within parentheses: e.g., feat(auth):
+      - Common scopes: api, ui, auth, db, core
+      - Do not use issue identifiers as scopes
+
+    - Description Rules:
+      - Use imperative, present tense: "add" not "added" or "adds"
+      - Start with lowercase letter
+      - No period at the end
+      - Keep it under 72 characters
+      - Think: "This commit will [description]"
+
+    - Breaking Changes:
+      Must be indicated in one of two ways:
+      1. Add ! before the colon:
+         ```
+         feat(api)!: remove deprecated user endpoints
+         ```
+      2. Include BREAKING CHANGE: in footer:
+         ```
+         feat(api): change authentication flow
+
+         BREAKING CHANGE: JWT tokens now required instead of session cookies
+         ```
+
+    - Examples:
+      ```
+      feat(ui): add dark mode toggle
+      fix(api): resolve rate limiting issue
+      docs(readme): update deployment instructions
+      refactor(core): simplify data processing pipeline
+      perf(queries): optimize database indexing
+      style: standardize code formatting
+      test(auth): add unit tests for password reset
+      build(deps): update dependencies to latest versions
+      ci(github): configure automated releases
+      chore: update .gitignore patterns
+      ```
+
+    - Semantic Versioning Relationship:
+      - fix: → PATCH version
+      - feat: → MINOR version
+      - BREAKING CHANGE: → MAJOR version (any type)
+
+    For complete details and additional examples, refer to:
+    - docs/COMMIT_CONVENTIONS.md

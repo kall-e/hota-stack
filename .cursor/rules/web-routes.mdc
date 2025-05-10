@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Web Routes Structure Guide
+
+The routing for the web app is defined in [apps/web/src/routes](mdc:apps/web/src/routes):
+
+- [_protected/](mdc:apps/web/src/routes/_protected): Routes requiring authentication, e.g., [tweets/](mdc:apps/web/src/routes/_protected/tweets) and dynamic routes like [$tweetid/](mdc:apps/web/src/routes/_protected/tweets/$tweetid).
+- [_public/](mdc:apps/web/src/routes/_public): Publicly accessible routes.
+- [(errors)/](mdc:apps/web/src/routes/(errors)): Error pages for HTTP status codes (401, 403, 404, 500, 503).
+- [__root.tsx](mdc:apps/web/src/routes/__root.tsx): Root layout for all routes.

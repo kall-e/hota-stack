@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Database Package Structure Guide
+
+The database schemas and related configurations for the project are located within the `packages/db` directory.
+
+- **Schemas**: All database table definitions and schemas can be found in [packages/db/src/schemas/](mdc:packages/db/src/schemas). This directory is the central place for understanding the data model of the application.
+
+Refer to the files within this directory to understand the structure of different database entities.

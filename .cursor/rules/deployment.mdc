@@ -1,0 +1,99 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Deployment Guidelines
+
+## Production Requirements
+
+### Environment Variables
+Required for production deployment:
+
+1. Web Application
+   - `PUBLIC_SERVER_URL`: Production API server URL
+   - `PUBLIC_BASE_PATH`: Base URL path for deployment
+
+2. Backend Server
+   - `SERVER_PORT`: Production server port
+   - `SERVER_HOST`: Production host
+   - `SERVER_AUTH_SECRET`: Production auth secret
+   - `SERVER_POSTGRES_URL`: Production database URL
+   - `PUBLIC_WEB_URL`: Production web app URL
+
+### Database Setup
+1. Production database requirements:
+   - PostgreSQL 15+
+   - SSL connection
+   - Proper backup strategy
+   - Migration plan
+
+2. Database URL format:
+   ```
+   postgresql://user:password@host:port/database?sslmode=require
+   ```
+
+## Deployment Options
+
+### Docker Deployment
+
+1. Build production images:
+   ```bash
+   docker compose -f compose.prod.yaml build
+   ```
+
+2. Deploy containers:
+   ```bash
+   docker compose -f compose.prod.yaml up -d
+   ```
+
+### Cloud Platforms
+
+1. Vercel (Web App)
+   - Connect repository
+   - Configure build settings
+   - Set environment variables
+   - Deploy with `vercel deploy`
+
+2. Railway (Backend)
+   - Push container image
+   - Configure environment
+   - Set up database
+   - Enable health checks
+
+3. Fly.io (Full Stack)
+   - Configure `fly.toml`
+   - Set secrets
+   - Deploy with `fly deploy`
+
+## Production Checklist
+
+### Security
+- [ ] Enable HTTPS
+- [ ] Set secure headers
+- [ ] Configure CORS
+- [ ] Rotate secrets
+- [ ] Enable rate limiting
+
+### Performance
+- [ ] Enable compression
+- [ ] Configure caching
+- [ ] Set up CDN
+- [ ] Optimize assets
+
+### Monitoring
+- [ ] Set up logging
+- [ ] Configure metrics
+- [ ] Enable error tracking
+- [ ] Set up alerts
+
+### Backup
+- [ ] Database backup strategy
+- [ ] Asset backup plan
+- [ ] Recovery procedures
+- [ ] Backup testing schedule
+
+## Related Documentation
+- [Containerization](mdc:containerization.mdc)
+- [Environment Setup](mdc:environment-setup.mdc)
+- [Project Configuration](mdc:project-configuration.mdc)

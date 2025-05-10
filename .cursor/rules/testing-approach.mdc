@@ -1,0 +1,24 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Testing Approach Guide
+
+The project uses a comprehensive testing strategy with multiple testing layers:
+
+- **Unit Tests**: Found in `tests/` directories within each package, using Vitest.
+  - Configuration: [tools/vitest-config/](mdc:tools/vitest-config)
+  
+- **End-to-End Tests**: Located in [apps/web/tests/e2e/](mdc:apps/web/tests/e2e), using Playwright.
+  - Configuration: [tools/playwright-config/](mdc:tools/playwright-config)
+
+- **API Tests**: Found in [packages/api/tests/](mdc:packages/api/tests).
+
+The testing strategy follows these principles:
+- Unit tests for business logic and individual components
+- Integration tests for feature flows and API endpoints
+- End-to-end tests for critical user journeys
+- Component tests for UI components
+
+Tests should be written alongside the feature code, maintaining the same directory structure when possible.

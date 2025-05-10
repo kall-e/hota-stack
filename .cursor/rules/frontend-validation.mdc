@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Frontend Validation Guide
+
+Frontend validation in the application follows specific patterns:
+
+- [utils/validations/](mdc:apps/web/src/utils/validations): Contains shared validation utilities and schemas.
+- Form validations typically use a validation library (like Zod or Yup) for schema-based validation.
+- Validation logic is separated from UI components for better reusability and testing.
+- Server-side validation errors are handled and displayed appropriately in the UI.
+
+Validation schemas are often shared between client and server to ensure consistent validation across the application.

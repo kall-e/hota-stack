@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Monorepo Structure Guide
+
+This project uses a monorepo structure with the following main directories:
+
+- [apps/](mdc:apps): Application entry points, including the main web and server apps.
+- [packages/](mdc:packages): Shared packages for API, authentication, database schemas, email, and UI components.
+- [tools/](mdc:tools): Configuration and utility tools for development, testing, and build processes.
+
+See [README.md](mdc:README.md) for more details on project setup and usage.

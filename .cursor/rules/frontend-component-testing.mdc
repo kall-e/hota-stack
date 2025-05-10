@@ -1,0 +1,253 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Frontend Component Testing Guide
+
+This guide outlines best practices for testing frontend components in the [apps/web](mdc:apps/web) application.
+
+## Component Testing Approach
+
+Component tests verify that individual UI components render correctly and function as expected in isolation. We use Vitest and React Testing Library for component testing.
+
+## Test Structure
+
+### 1. Component Test Location
+
+Component tests should be co-located with their components:
+
+```
+apps/web/src/
+  features/
+    tweets/
+      components/
+        TweetCard.tsx
+        TweetCard.test.tsx  # Test file next to the component
+```
+
+### 2. Basic Component Test Structure
+
+```typescript
+// TweetCard.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import TweetCard from './TweetCard';
+
+describe('TweetCard', () => {
+  const mockTweet = {
+    id: '1',
+    content: 'Test tweet content',
+    authorName: 'Test User',
+    createdAt: new Date().toISOString(),
+  };
+  
+  it('renders tweet content correctly', () => {
+    // Arrange
+    render(<TweetCard tweet={mockTweet} />);
+    
+    // Act - nothing to do for this test
+    
+    // Assert
+    expect(screen.getByText(mockTweet.content)).toBeInTheDocument();
+    expect(screen.getByText(mockTweet.authorName)).toBeInTheDocument();
+  });
+  
+  it('calls like function when like button is clicked', () => {
+    // Arrange
+    const onLikeMock = vi.fn();
+    render(<TweetCard tweet={mockTweet} onLike={onLikeMock} />);
+    
+    // Act
+    const likeButton = screen.getByRole('button', { name: /like/i });
+    fireEvent.click(likeButton);
+    
+    // Assert
+    expect(onLikeMock).toHaveBeenCalledWith(mockTweet.id);
+  });
+});
+```
+
+## Testing Different Component Types
+
+### 1. Presentational Components
+
+Focus on rendering and appearance:
+
+```typescript
+it('renders with the correct styling', () => {
+  render(<Button variant="primary">Click Me</Button>);
+  const button = screen.getByRole('button', { name: /click me/i });
+  expect(button).toHaveClass('btn-primary');
+});
+```
+
+### 2. Interactive Components
+
+Test user interactions and state changes:
+
+```typescript
+it('toggles dropdown when clicked', () => {
+  render(<Dropdown options={['Option 1', 'Option 2']} />);
+  
+  // Dropdown should be closed initially
+  expect(screen.queryByText('Option 1')).not.toBeVisible();
+  
+  // Open dropdown
+  fireEvent.click(screen.getByRole('button'));
+  
+  // Options should now be visible
+  expect(screen.getByText('Option 1')).toBeVisible();
+  expect(screen.getByText('Option 2')).toBeVisible();
+});
+```
+
+### 3. Container Components
+
+Test integrations with data stores and APIs (with mocks):
+
+```typescript
+it('loads and displays user data', async () => {
+  // Mock API response
+  vi.mock('../api', () => ({
+    fetchUserProfile: vi.fn().mockResolvedValue({
+      name: 'Test User',
+      email: 'test@example.com'
+    })
+  }));
+  
+  render(<UserProfile userId="123" />);
+  
+  // Should show loading state initially
+  expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  
+  // Wait for data to load
+  await screen.findByText('Test User');
+  
+  // Verify data is displayed
+  expect(screen.getByText('test@example.com')).toBeInTheDocument();
+});
+```
+
+## Test Providers and Wrappers
+
+Many components require context providers. Create test wrappers:
+
+```typescript
+// test-utils.tsx
+import { ReactNode } from 'react';
+import { render } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from '../components/theme-provider';
+
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
+
+export function renderWithProviders(ui: ReactNode) {
+  const queryClient = createTestQueryClient();
+  
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>{ui}</ThemeProvider>
+    </QueryClientProvider>
+  );
+}
+```
+
+## Testing Custom Hooks
+
+For React custom hooks, use the `renderHook` function:
+
+```typescript
+import { renderHook, act } from '@testing-library/react-hooks';
+import { useCounter } from './useCounter';
+
+it('increments counter', () => {
+  const { result } = renderHook(() => useCounter());
+  
+  act(() => {
+    result.current.increment();
+  });
+  
+  expect(result.current.count).toBe(1);
+});
+```
+
+## Mocking
+
+### 1. API Calls
+
+```typescript
+import { vi } from 'vitest';
+import { fetchTweets } from '../api';
+
+vi.mock('../api', () => ({
+  fetchTweets: vi.fn()
+}));
+
+beforeEach(() => {
+  fetchTweets.mockResolvedValue([
+    { id: '1', content: 'Mocked tweet' }
+  ]);
+});
+```
+
+### 2. Third-party Libraries
+
+```typescript
+import { vi } from 'vitest';
+
+vi.mock('next/router', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    pathname: '/current-path'
+  })
+}));
+```
+
+## Component Testing Best Practices
+
+1. **Test behavior, not implementation**:
+   - Test what the component does, not how it does it.
+   - Avoid testing internal state unless necessary.
+
+2. **Use role-based selectors**:
+   - Prefer `getByRole` over `getByTestId` to ensure accessibility.
+   - Example: `getByRole('button', { name: /submit/i })` instead of `getByTestId('submit-button')`.
+
+3. **Test user interactions**:
+   - Test what happens when users click, type, and interact with components.
+   - Use `fireEvent` or `userEvent` from Testing Library.
+
+4. **Write maintainable tests**:
+   - Don't test styles directly (they change often).
+   - Test functionality and accessibility instead.
+
+5. **Test error states and edge cases**:
+   - Empty states, error messages, loading states.
+   - Boundary conditions like minimal/maximum values.
+
+6. **Snapshot tests (use sparingly)**:
+   - For components that rarely change visually.
+   - Document why the snapshot exists and what it verifies.
+
+## Running Component Tests
+
+Add these scripts to `apps/web/package.json`:
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  }
+}
+```
+
+Remember that good component tests focus on user interactions and outcomes, not implementation details.

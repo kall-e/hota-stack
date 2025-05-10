@@ -1,0 +1,104 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Frontend Project Structure
+
+## Directory Organization
+
+The frontend project follows a feature-based organization within the `src` directory:
+
+```
+src/
+├─ assets/           # Static assets (images, fonts, SVGs)
+├─ components/       # Reusable UI components
+│   ├─ layout/      # Layout components
+│   │   ├─ data/    # Layout configuration
+│   │   └─ nav/     # Navigation components
+├─ config/          # App configuration
+├─ context/         # React context providers
+├─ features/        # Domain feature modules
+│   ├─ auth/        # Authentication
+│   ├─ dashboard/   # Dashboard
+│   ├─ errors/      # Error pages
+│   └─ users/       # User management
+├─ hooks/           # Custom React hooks
+├─ lib/             # Library wrappers
+├─ routes/          # Route definitions
+├─ stores/          # State management
+└─ utils/           # Helper functions
+```
+
+## Key Directories
+
+### Components (`src/components/`)
+- Reusable UI components based on shadcn/ui
+- Layout components in `layout/`
+- Navigation components in `layout/nav/`
+- Layout data in `layout/data/`
+
+### Features (`src/features/`)
+Each feature module contains:
+- Entry component (`index.tsx`)
+- Feature-specific components
+- Feature-specific hooks
+- Feature-specific types
+- Feature-specific utilities
+
+### Routes (`src/routes/`)
+TanStack Router structure:
+- `__root.tsx` - Root layout
+- `(auth)/` - Public auth routes
+- `(errors)/` - Error pages
+- `_authenticated/` - Protected routes
+
+## File Naming Conventions
+
+1. Component Files
+   - PascalCase for component files
+   - Suffix with `.tsx`
+   - Example: `UserProfile.tsx`
+
+2. Utility Files
+   - camelCase for utility files
+   - Suffix with `.ts`
+   - Example: `formatDate.ts`
+
+3. Route Files
+   - Special prefixes:
+     - `__` for root layouts
+     - `_` for protected routes
+     - `$` for dynamic parameters
+   - Example: `$userId.tsx`
+
+## Component Organization
+
+### Layout Components
+```tsx
+// src/components/layout/nav/navbar.tsx
+export function Navbar() {
+  return (
+    <nav>
+      {/* Navigation content */}
+    </nav>
+  );
+}
+```
+
+### Feature Components
+```tsx
+// src/features/users/components/UserList.tsx
+export function UserList() {
+  return (
+    <div>
+      {/* User list content */}
+    </div>
+  );
+}
+```
+
+## Related Documentation
+- [Web App Structure](mdc:web-app-structure.mdc)
+- [Component Development](mdc:component-development.mdc)
+- [Project Architecture](mdc:project-architecture.mdc)

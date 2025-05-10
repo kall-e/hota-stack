@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Email Package Structure Guide
+
+The `packages/email` directory contains all functionalities related to sending and managing emails within the application.
+
+- **Source Code**: The core logic for email services, templates, and configurations is located in [packages/email/src/](mdc:packages/email/src).
+
+This package centralizes email-related tasks, making it easier to manage email templates, configurations, and sending logic across the project.

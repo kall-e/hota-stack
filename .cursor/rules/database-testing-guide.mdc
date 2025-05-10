@@ -1,0 +1,310 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Database Testing Guide
+
+This guide provides best practices for testing database interactions in the [packages/db](mdc:packages/db) package.
+
+## Approaches to Database Testing
+
+### 1. Mocking the Database Client
+
+For unit tests, mock the database client to isolate the code from actual database operations:
+
+```typescript
+// Example using Prisma with Vitest
+import { vi } from 'vitest';
+
+// Create a mock Prisma client
+export const prismaMock = {
+  user: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  tweet: {
+    // ... mock tweet model methods
+  },
+  $transaction: vi.fn((callback) => callback(prismaMock)),
+  $connect: vi.fn(),
+  $disconnect: vi.fn(),
+};
+
+// Mock the Prisma client in your tests
+vi.mock('@prisma/client', () => {
+  return {
+    PrismaClient: vi.fn(() => prismaMock),
+  };
+});
+```
+
+### 2. In-Memory Database
+
+For integration tests, use an in-memory database like SQLite:
+
+```typescript
+// packages/db/tests/setup.ts
+import { PrismaClient } from '@prisma/client';
+import { execSync } from 'child_process';
+import { join } from 'path';
+import { URL } from 'url';
+import { v4 as uuid } from 'uuid';
+
+// Generate a unique SQLite database file for each test run
+const generateDatabaseURL = (schema: string) => {
+  const databaseFile = join(process.cwd(), `prisma/test-${schema}.db`);
+  return `file:${databaseFile}`;
+};
+
+// Create a test database
+export const setupTestDatabase = () => {
+  const schema = uuid();
+  const databaseURL = generateDatabaseURL(schema);
+  
+  // Set environment variable for Prisma
+  process.env.DATABASE_URL = databaseURL;
+  
+  // Run migrations
+  execSync(`npx prisma migrate deploy`, {
+    env: {
+      ...process.env,
+      DATABASE_URL: databaseURL,
+    },
+  });
+  
+  // Create a new PrismaClient instance
+  const prisma = new PrismaClient();
+  
+  return { prisma, databaseURL };
+};
+
+// Clean up test database
+export const teardownTestDatabase = async (prisma: PrismaClient) => {
+  await prisma.$disconnect();
+};
+```
+
+## Testing Database Operations
+
+### Unit Testing Repository Methods
+
+```typescript
+// packages/db/tests/user-repository.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { UserRepository } from '../src/repositories/user-repository';
+import { prismaMock } from './__mocks__/prisma';
+
+describe('UserRepository', () => {
+  let userRepo: UserRepository;
+  
+  beforeEach(() => {
+    vi.clearAllMocks();
+    userRepo = new UserRepository(prismaMock);
+  });
+  
+  describe('getUserById', () => {
+    it('should return a user when it exists', async () => {
+      // Arrange
+      const mockUser = { 
+        id: 'user-1', 
+        name: 'Test User', 
+        email: 'test@example.com' 
+      };
+      
+      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      
+      // Act
+      const result = await userRepo.getUserById('user-1');
+      
+      // Assert
+      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'user-1' }
+      });
+      expect(result).toEqual(mockUser);
+    });
+    
+    it('should return null when user does not exist', async () => {
+      // Arrange
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      
+      // Act
+      const result = await userRepo.getUserById('non-existent');
+      
+      // Assert
+      expect(result).toBeNull();
+    });
+  });
+});
+```
+
+### Integration Testing with Real Database
+
+```typescript
+// packages/db/tests/integration/tweet-operations.test.ts
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { setupTestDatabase, teardownTestDatabase } from '../setup';
+import { TweetRepository } from '../../src/repositories/tweet-repository';
+
+describe('Tweet Operations Integration Tests', () => {
+  let prisma;
+  let tweetRepo;
+  
+  beforeAll(async () => {
+    const testDb = setupTestDatabase();
+    prisma = testDb.prisma;
+    tweetRepo = new TweetRepository(prisma);
+  });
+  
+  afterAll(async () => {
+    await teardownTestDatabase(prisma);
+  });
+  
+  beforeEach(async () => {
+    // Clear data between tests
+    await prisma.tweet.deleteMany({});
+    await prisma.user.deleteMany({});
+  });
+  
+  describe('createTweet', () => {
+    it('should create a tweet and link it to a user', async () => {
+      // Arrange - Create a test user first
+      const user = await prisma.user.create({
+        data: {
+          name: 'Test User',
+          email: 'test@example.com',
+        }
+      });
+      
+      // Act - Create a tweet linked to the user
+      const tweet = await tweetRepo.createTweet({
+        content: 'Test tweet content',
+        authorId: user.id
+      });
+      
+      // Assert
+      expect(tweet).toHaveProperty('id');
+      expect(tweet.content).toBe('Test tweet content');
+      expect(tweet.authorId).toBe(user.id);
+      
+      // Verify it's in the database
+      const dbTweet = await prisma.tweet.findUnique({
+        where: { id: tweet.id }
+      });
+      
+      expect(dbTweet).not.toBeNull();
+      expect(dbTweet?.content).toBe('Test tweet content');
+    });
+  });
+});
+```
+
+## Testing Database Schema Migrations
+
+Test your database schema migrations to ensure they apply cleanly and correctly:
+
+```typescript
+// packages/db/tests/migrations.test.ts
+import { describe, it, expect } from 'vitest';
+import { execSync } from 'child_process';
+import { PrismaClient } from '@prisma/client';
+import { setupTestDatabase, teardownTestDatabase } from './setup';
+
+describe('Database Migrations', () => {
+  let prisma;
+  
+  beforeEach(async () => {
+    const testDb = setupTestDatabase();
+    prisma = testDb.prisma;
+  });
+  
+  afterEach(async () => {
+    await teardownTestDatabase(prisma);
+  });
+  
+  it('should apply migrations successfully', async () => {
+    // This test inherently tests if migrations work because the setup function runs migrations
+    // Here we can add additional assertions about the database schema
+    
+    // For example, check if expected tables exist
+    const tables = await prisma.$queryRaw`
+      SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_prisma_%'
+    `;
+    
+    // Convert result to array of table names
+    const tableNames = tables.map(t => t.name);
+    
+    // Assert expected tables exist
+    expect(tableNames).toContain('User');
+    expect(tableNames).toContain('Tweet');
+    // Add other expected tables
+  });
+  
+  it('should have correct schema for User table', async () => {
+    // Query table info to check columns
+    const userTableInfo = await prisma.$queryRaw`PRAGMA table_info(User)`;
+    
+    // Convert to map of column names
+    const columns = userTableInfo.reduce((acc, col) => {
+      acc[col.name] = col;
+      return acc;
+    }, {});
+    
+    // Assert expected columns exist
+    expect(columns).toHaveProperty('id');
+    expect(columns).toHaveProperty('email');
+    expect(columns).toHaveProperty('name');
+    
+    // Check constraints
+    expect(columns.email.notnull).toBe(1); // Email should be non-nullable
+  });
+});
+```
+
+## Database Testing Best Practices
+
+1. **Isolation**: Each test should start with a clean database state.
+
+2. **Speed**: Use in-memory databases for faster tests when possible.
+
+3. **Transactions**: Use transactions to roll back changes after tests:
+   ```typescript
+   beforeEach(async () => {
+     // Start a transaction
+     await prisma.$executeRaw`BEGIN TRANSACTION`;
+   });
+   
+   afterEach(async () => {
+     // Roll back changes
+     await prisma.$executeRaw`ROLLBACK`;
+   });
+   ```
+
+4. **Representative Data**: Test with data that represents real-world scenarios.
+
+5. **Edge Cases**: Test database constraints, unique indexes, and cascading deletes.
+
+6. **Transaction Tests**: Specifically test transaction behavior:
+   ```typescript
+   it('should roll back all changes if transaction fails', async () => {
+     try {
+       await prisma.$transaction(async (tx) => {
+         await tx.user.create({ data: { name: 'User 1', email: 'user1@example.com' } });
+         await tx.user.create({ data: { name: 'User 2', email: 'user1@example.com' } }); // Duplicate email, should fail
+       });
+       expect(false).toBe(true); // Should not reach here
+     } catch (error) {
+       // Transaction should have failed
+       expect(error).toBeDefined();
+     }
+     
+     // No users should have been created
+     const userCount = await prisma.user.count();
+     expect(userCount).toBe(0);
+   });
+   ```
+
+Remember to adapt these examples to your project's specific database provider and testing needs. This guide assumes a Prisma-based setup, but the principles apply to other ORMs and database libraries as well.

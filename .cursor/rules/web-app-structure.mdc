@@ -1,0 +1,17 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Web App Structure Guide
+
+The main web application is located in [apps/web/src](mdc:apps/web/src). Key directories include:
+
+- [components/](mdc:apps/web/src/components): Shared UI components, including layout and navigation elements.
+- [features/](mdc:apps/web/src/features): Feature-specific logic and UI, organized by domain (e.g., auth, dashboard, tweets).
+- [routes/](mdc:apps/web/src/routes): Route definitions and layouts, including protected and public routes, as well as error pages.
+- [lib/](mdc:apps/web/src/lib): Shared libraries and utilities for the web app.
+- [utils/](mdc:apps/web/src/utils): Utility functions and validation logic.
+
+Entry point: [main.tsx](mdc:apps/web/src/main.tsx)
+Router: [router.tsx](mdc:apps/web/src/router.tsx)

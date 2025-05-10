@@ -1,0 +1,70 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Technology Stack Guidelines
+
+## Frontend Stack (Web App)
+
+Our web application uses a modern React-based stack with the following core technologies:
+
+### Core Framework and Routing
+- React with TypeScript for type safety
+- TanStack Router for file-based routing
+- TanStack Query for efficient data fetching and caching
+- TanStack Form for form management
+
+### UI and Styling
+- shadcn/ui components (built on Radix UI)
+- Tailwind CSS for styling
+- Class Variance Authority (CVA) for component variants
+
+### Data and Validation
+- Valibot for schema validation
+- SuperJSON for data transformation
+- tRPC client for type-safe API calls
+
+## Backend Stack (Server)
+
+Our server infrastructure is built on:
+
+### Core Framework
+- Hono for API server
+- Node.js runtime with @hono/node-server
+- tRPC for end-to-end type safety
+
+### Authentication and Database
+- better-auth for authentication and authorization
+- Drizzle ORM with PostgreSQL
+- Valibot for schema validation
+
+## Integration Points
+
+### API Communication
+- tRPC bridges frontend and backend
+- Type definitions shared through `@repo/api` package
+- SuperJSON handles complex data types serialization
+
+### Authentication Flow
+- better-auth handles user sessions
+- JWT tokens for API authentication
+- Secure cookie-based session management
+
+## Development Tools
+
+### Build and Bundle
+- Vite for frontend development
+- TypeScript for type checking
+- Turborepo for monorepo management
+
+### Code Quality
+- Biome for linting and formatting
+- Vitest for unit and integration testing
+- Playwright for end-to-end testing
+
+## Related Documentation
+- [Frontend Component Development](mdc:component-development.mdc)
+- [API Structure](mdc:server-api-structure.mdc)
+- [Database Integration](mdc:packages-db.mdc)
+- [Testing Strategy](mdc:testing-strategy.mdc)

@@ -1,0 +1,417 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Practical Backend Testing Implementation Guide
+
+This guide provides practical steps for implementing unit tests in backend services for this project.
+
+## Getting Started with a New Test
+
+### 1. Create a Test File Structure
+
+Follow this structure for organizing test files:
+
+```
+packages/api/
+  src/
+    server/
+      router/
+        tweet.ts
+      services/
+        auth-service.ts
+  tests/
+    setup.ts                 # Test setup and utilities
+    __mocks__/               # Mock implementations
+      prisma.ts              # Prisma client mock
+    server/
+      router/
+        tweet.test.ts        # Tests for tweet router
+      services/
+        auth-service.test.ts # Tests for auth service
+```
+
+### 2. Setting Up the Test Environment
+
+Create a setup file with common test utilities:
+
+```typescript
+// packages/api/tests/setup.ts
+import { vi, beforeAll, afterAll, afterEach } from 'vitest';
+
+// Export mock helpers
+export * from './__mocks__/prisma';
+
+// Set up global test environment
+beforeAll(() => {
+  // Initialize any global state or mocks
+});
+
+// Clean up after each test
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+// Clean up after all tests
+afterAll(() => {
+  // Clean up global state
+});
+```
+
+### 3. Creating Mock Implementations
+
+Set up common mocks:
+
+```typescript
+// packages/api/tests/__mocks__/prisma.ts
+import { vi } from 'vitest';
+
+// Create a mock Prisma client with typed methods
+export const prismaMock = {
+  tweet: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  user: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  $transaction: vi.fn((callback) => callback(prismaMock)),
+  $connect: vi.fn(),
+  $disconnect: vi.fn(),
+};
+```
+
+## Writing Effective Unit Tests
+
+### 1. Testing a Service
+
+```typescript
+// packages/api/tests/server/services/auth-service.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { AuthService } from '../../../src/server/services/auth-service';
+import { prismaMock } from '../../__mocks__/prisma';
+import { hash } from 'bcrypt';
+
+// Mock bcrypt
+vi.mock('bcrypt', () => ({
+  hash: vi.fn().mockImplementation((password) => Promise.resolve(`hashed_${password}`)),
+  compare: vi.fn().mockImplementation((password, hashedPassword) => 
+    Promise.resolve(hashedPassword === `hashed_${password}`))
+}));
+
+describe('AuthService', () => {
+  let authService;
+  
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authService = new AuthService(prismaMock);
+  });
+  
+  describe('registerUser', () => {
+    it('should create a new user with hashed password', async () => {
+      // Arrange
+      const userData = { 
+        email: 'new@example.com', 
+        password: 'password123', 
+        name: 'New User' 
+      };
+      
+      const expectedUserInDb = {
+        id: 'user-1',
+        email: userData.email,
+        password: 'hashed_password123',
+        name: userData.name,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      prismaMock.user.findUnique.mockResolvedValue(null); // User doesn't exist yet
+      prismaMock.user.create.mockResolvedValue(expectedUserInDb);
+      
+      // Act
+      const result = await authService.registerUser(userData);
+      
+      // Assert
+      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+        where: { email: userData.email }
+      });
+      expect(hash).toHaveBeenCalledWith(userData.password, 10);
+      expect(prismaMock.user.create).toHaveBeenCalledWith({
+        data: {
+          email: userData.email,
+          password: 'hashed_password123',
+          name: userData.name
+        }
+      });
+      expect(result).toEqual({
+        id: expectedUserInDb.id,
+        email: expectedUserInDb.email,
+        name: expectedUserInDb.name
+      });
+      expect(result).not.toHaveProperty('password'); // Password should not be returned
+    });
+    
+    it('should throw an error if user already exists', async () => {
+      // Arrange
+      const userData = { 
+        email: 'existing@example.com', 
+        password: 'password123', 
+        name: 'Existing User' 
+      };
+      
+      const existingUser = {
+        id: 'user-2',
+        email: userData.email,
+        password: 'hashed_existing_password',
+        name: 'Existing User',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      prismaMock.user.findUnique.mockResolvedValue(existingUser);
+      
+      // Act & Assert
+      await expect(authService.registerUser(userData))
+        .rejects.toThrow('User with this email already exists');
+      expect(prismaMock.user.create).not.toHaveBeenCalled();
+    });
+  });
+  
+  describe('loginUser', () => {
+    it('should return user when credentials are valid', async () => {
+      // Arrange
+      const loginData = { 
+        email: 'user@example.com', 
+        password: 'correct_password' 
+      };
+      
+      const storedUser = {
+        id: 'user-3',
+        email: loginData.email,
+        password: 'hashed_correct_password',
+        name: 'User',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      prismaMock.user.findUnique.mockResolvedValue(storedUser);
+      
+      // Act
+      const result = await authService.loginUser(loginData);
+      
+      // Assert
+      expect(result).toEqual({
+        id: storedUser.id,
+        email: storedUser.email,
+        name: storedUser.name
+      });
+    });
+    
+    it('should throw error when user does not exist', async () => {
+      // Arrange
+      const loginData = { 
+        email: 'nonexistent@example.com', 
+        password: 'any_password' 
+      };
+      
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      
+      // Act & Assert
+      await expect(authService.loginUser(loginData))
+        .rejects.toThrow('Invalid email or password');
+    });
+    
+    it('should throw error when password is incorrect', async () => {
+      // Arrange
+      const loginData = { 
+        email: 'user@example.com', 
+        password: 'wrong_password' 
+      };
+      
+      const storedUser = {
+        id: 'user-3',
+        email: loginData.email,
+        password: 'hashed_correct_password',
+        name: 'User',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      prismaMock.user.findUnique.mockResolvedValue(storedUser);
+      
+      // Act & Assert
+      await expect(authService.loginUser(loginData))
+        .rejects.toThrow('Invalid email or password');
+    });
+  });
+});
+```
+
+### 2. Testing an API Router
+
+```typescript
+// packages/api/tests/server/router/tweet.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { tweetRouter } from '../../../src/server/router/tweet';
+import { prismaMock } from '../../__mocks__/prisma';
+
+// Mock the route context factory
+const mockCreateRouterCaller = (router, context) => {
+  // This would need to match your actual API framework's behavior
+  const caller = {};
+  
+  // Map each procedure in the router to a method on the caller
+  for (const [name, procedure] of Object.entries(router._def.procedures)) {
+    caller[name] = (input) => procedure.call(context, input);
+  }
+  
+  return caller;
+};
+
+describe('Tweet Router', () => {
+  // Define authenticated and unauthenticated contexts
+  const authenticatedContext = {
+    prisma: prismaMock,
+    session: {
+      user: { id: 'user-id', name: 'Test User', email: 'test@example.com' }
+    }
+  };
+  
+  const unauthenticatedContext = {
+    prisma: prismaMock,
+    session: null
+  };
+  
+  describe('getUserTweets', () => {
+    it('should return tweets for a user', async () => {
+      // Arrange
+      const userId = 'user-id';
+      const mockTweets = [
+        { id: 'tweet-1', content: 'First tweet', authorId: userId, createdAt: new Date(), updatedAt: new Date() },
+        { id: 'tweet-2', content: 'Second tweet', authorId: userId, createdAt: new Date(), updatedAt: new Date() }
+      ];
+      
+      prismaMock.tweet.findMany.mockResolvedValue(mockTweets);
+      
+      const caller = mockCreateRouterCaller(tweetRouter, authenticatedContext);
+      
+      // Act
+      const result = await caller.getUserTweets({ userId });
+      
+      // Assert
+      expect(prismaMock.tweet.findMany).toHaveBeenCalledWith({
+        where: { authorId: userId },
+        orderBy: { createdAt: 'desc' }
+      });
+      expect(result).toEqual(mockTweets);
+    });
+    
+    it('should throw error when not authenticated', async () => {
+      // Arrange
+      const caller = mockCreateRouterCaller(tweetRouter, unauthenticatedContext);
+      
+      // Act & Assert
+      await expect(caller.getUserTweets({ userId: 'user-id' }))
+        .rejects.toThrow('Unauthorized');
+    });
+  });
+});
+```
+
+## Testing Error Handling
+
+Ensure you test how your code handles errors:
+
+```typescript
+// packages/api/tests/server/services/tweet-service.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { TweetService } from '../../../src/server/services/tweet-service';
+import { prismaMock } from '../../__mocks__/prisma';
+
+describe('TweetService Error Handling', () => {
+  let tweetService;
+  
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tweetService = new TweetService(prismaMock);
+  });
+  
+  it('should handle database errors when creating a tweet', async () => {
+    // Arrange
+    const tweetData = { content: 'New tweet', authorId: 'user-id' };
+    const dbError = new Error('Database connection failed');
+    
+    prismaMock.tweet.create.mockRejectedValue(dbError);
+    
+    // Act & Assert
+    await expect(tweetService.createTweet(tweetData))
+      .rejects.toThrow('Failed to create tweet: Database connection failed');
+  });
+  
+  it('should handle unexpected errors by logging and rethrowing', async () => {
+    // Arrange
+    const unexpectedError = new Error('Unexpected failure');
+    prismaMock.tweet.findMany.mockRejectedValue(unexpectedError);
+    
+    // Mock console.error to verify logging
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    
+    // Act & Assert
+    await expect(tweetService.getUserTweets('user-id'))
+      .rejects.toThrow('Unexpected failure');
+    
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Error fetching user tweets:',
+      unexpectedError
+    );
+    
+    // Restore console.error
+    consoleSpy.mockRestore();
+  });
+});
+```
+
+## Running Tests
+
+Update scripts in `packages/api/package.json`:
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
+  }
+}
+```
+
+## Best Practices For Implementation
+
+1. **Name your test files consistently**: Use `.test.ts` or `.spec.ts` suffix.
+
+2. **Structure tests to match the source code structure**: This makes it easier to find tests for a particular file.
+
+3. **Ensure test independence**: Each test should run independently and not rely on other tests.
+
+4. **Use descriptive test names**: Make it clear what you're testing and what the expected behavior is.
+
+5. **Focus on testing behavior, not implementation details**: Test what the code does, not how it does it.
+
+6. **Test both success and failure paths**: Ensure error handling works correctly.
+
+7. **Keep tests focused and specific**: Each test should verify one specific behavior.
+
+8. **Use beforeEach to set up clean test state**: Reset mocks and create fresh instances for each test.
+
+9. **Use mocking judiciously**: Only mock what's necessary to isolate the unit under test.
+
+10. **Run tests as part of CI/CD**: Configure your continuous integration to run tests automatically.

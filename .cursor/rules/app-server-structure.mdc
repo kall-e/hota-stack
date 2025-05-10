@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Server Application Structure Guide
+
+The main server-side application logic is housed within the `apps/server/src/` directory.
+
+- **Source Code**: Core server functionalities, including its entry point, API route handlers (if not exclusively in `packages/api`), middleware, services, and other server-specific modules, are located in [apps/server/src/](mdc:apps/server/src).
+
+This directory is central to the backend operations of your project. While `packages/api` defines the API contracts and routers, `apps/server/src/` is where the server is configured and run.

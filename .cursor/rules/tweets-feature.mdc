@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Tweets Feature Structure Guide
+
+The tweets feature is a core part of the application, with components in:
+
+- [features/tweets/components/](mdc:apps/web/src/features/tweets/components): Contains Tweet UI components.
+- [routes/_protected/tweets/](mdc:apps/web/src/routes/_protected/tweets): Protected routes for tweet views, including individual tweet views under [$tweetid/](mdc:apps/web/src/routes/_protected/tweets/$tweetid).
+- [packages/api/src/server/router/tweet.ts](mdc:packages/api/src/server/router/tweet.ts): Contains the API routes and handlers for tweet data.
+
+The tweets feature allows users to create, view, edit, and delete tweets. It uses the API package for data fetching and the UI package for shared components.

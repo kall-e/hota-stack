@@ -1,0 +1,411 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Frontend Integration Testing Guide
+
+This guide outlines best practices for integration testing frontend features in the [apps/web](mdc:apps/web) application.
+
+## Integration Testing Approach
+
+Integration tests verify that multiple components work together correctly to implement a feature. They sit between unit tests (testing isolated components) and E2E tests (testing the entire application).
+
+## Test Structure
+
+### 1. Integration Test Location
+
+Integration tests should be stored in a dedicated directory or alongside the feature implementation:
+
+```
+apps/web/
+  src/
+    features/
+      tweets/
+        __tests__/          # Feature integration tests
+          tweet-feed.test.tsx
+          tweet-creation.test.tsx
+```
+
+### 2. Basic Integration Test Structure
+
+```typescript
+// apps/web/src/features/tweets/__tests__/tweet-feed.test.tsx
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { TweetFeed } from '../components/TweetFeed';
+import { renderWithProviders } from '../../../test-utils';
+import { fetchTweets } from '../api/tweets';
+
+// Mock API module
+vi.mock('../api/tweets', () => ({
+  fetchTweets: vi.fn(),
+}));
+
+describe('Tweet Feed Integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  
+  it('fetches and displays tweets', async () => {
+    // Mock API response
+    const mockTweets = [
+      { id: '1', content: 'First tweet', authorName: 'User 1', createdAt: new Date().toISOString() },
+      { id: '2', content: 'Second tweet', authorName: 'User 2', createdAt: new Date().toISOString() }
+    ];
+    
+    fetchTweets.mockResolvedValue(mockTweets);
+    
+    // Render with necessary providers
+    renderWithProviders(<TweetFeed />);
+    
+    // Verify loading state is shown
+    expect(screen.getByText(/loading tweets/i)).toBeInTheDocument();
+    
+    // Wait for tweets to load
+    await waitFor(() => {
+      expect(screen.getByText('First tweet')).toBeInTheDocument();
+      expect(screen.getByText('Second tweet')).toBeInTheDocument();
+    });
+    
+    // Verify API was called with expected parameters
+    expect(fetchTweets).toHaveBeenCalledTimes(1);
+  });
+  
+  it('handles empty tweet list', async () => {
+    // Mock empty response
+    fetchTweets.mockResolvedValue([]);
+    
+    renderWithProviders(<TweetFeed />);
+    
+    // Wait for empty state to be displayed
+    await waitFor(() => {
+      expect(screen.getByText(/no tweets found/i)).toBeInTheDocument();
+    });
+  });
+  
+  it('handles error state', async () => {
+    // Mock API error
+    fetchTweets.mockRejectedValue(new Error('Failed to fetch tweets'));
+    
+    renderWithProviders(<TweetFeed />);
+    
+    // Wait for error state to be displayed
+    await waitFor(() => {
+      expect(screen.getByText(/error loading tweets/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    });
+    
+    // Test retry functionality
+    fetchTweets.mockResolvedValue([{ id: '1', content: 'Tweet after retry', authorName: 'User 1', createdAt: new Date().toISOString() }]);
+    
+    // Click retry button
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    
+    // Verify loading state is shown again
+    expect(screen.getByText(/loading tweets/i)).toBeInTheDocument();
+    
+    // Wait for tweets to load after retry
+    await waitFor(() => {
+      expect(screen.getByText('Tweet after retry')).toBeInTheDocument();
+    });
+    
+    // Verify API was called again
+    expect(fetchTweets).toHaveBeenCalledTimes(2);
+  });
+});
+```
+
+## Testing Feature Interactions
+
+Test how components interact within a feature:
+
+```typescript
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { TweetCreation } from '../components/TweetCreation';
+import { TweetFeed } from '../components/TweetFeed';
+import { TweetsPage } from '../pages/TweetsPage';
+import { renderWithProviders } from '../../../test-utils';
+import { createTweet, fetchTweets } from '../api/tweets';
+
+// Mock API module
+vi.mock('../api/tweets', () => ({
+  createTweet: vi.fn(),
+  fetchTweets: vi.fn(),
+}));
+
+describe('Tweet Creation and Feed Integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    
+    // Mock initial tweets
+    fetchTweets.mockResolvedValue([
+      { id: '1', content: 'Existing tweet', authorName: 'User 1', createdAt: new Date().toISOString() }
+    ]);
+  });
+  
+  it('adds a new tweet to the feed after creation', async () => {
+    const newTweet = { 
+      id: '2', 
+      content: 'New test tweet', 
+      authorName: 'Test User', 
+      createdAt: new Date().toISOString() 
+    };
+    
+    createTweet.mockResolvedValue(newTweet);
+    
+    // After creation, the new list of tweets includes both the existing and new tweet
+    const updatedTweets = [
+      { id: '1', content: 'Existing tweet', authorName: 'User 1', createdAt: new Date().toISOString() },
+      newTweet
+    ];
+    
+    // Mock fetchTweets to return updated list on second call
+    fetchTweets.mockResolvedValueOnce([updatedTweets[0]]);
+    fetchTweets.mockResolvedValueOnce(updatedTweets);
+    
+    // Render the entire page component that contains both creation and feed
+    renderWithProviders(<TweetsPage />);
+    
+    // Wait for initial tweets to load
+    await waitFor(() => {
+      expect(screen.getByText('Existing tweet')).toBeInTheDocument();
+    });
+    
+    // Create a new tweet
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'New test tweet' } });
+    fireEvent.click(screen.getByRole('button', { name: /post/i }));
+    
+    // Wait for the creation to complete and the feed to refresh
+    await waitFor(() => {
+      expect(createTweet).toHaveBeenCalledWith({ content: 'New test tweet' });
+      expect(fetchTweets).toHaveBeenCalledTimes(2); // Initial load + refresh after creation
+      expect(screen.getByText('New test tweet')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+## Testing with MSW (Mock Service Worker)
+
+For more realistic API mocking, use MSW:
+
+```typescript
+import { rest } from 'msw';
+import { setupServer } from 'msw/node';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
+import { TweetsPage } from '../pages/TweetsPage';
+import { renderWithProviders } from '../../../test-utils';
+
+// Setup MSW server
+const server = setupServer(
+  // Define handlers for API endpoints
+  rest.get('/api/tweets', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json([
+        { id: '1', content: 'Mocked tweet 1', authorName: 'User 1', createdAt: new Date().toISOString() },
+        { id: '2', content: 'Mocked tweet 2', authorName: 'User 2', createdAt: new Date().toISOString() },
+      ])
+    );
+  }),
+  
+  rest.post('/api/tweets', (req, res, ctx) => {
+    const { content } = req.body as any;
+    
+    return res(
+      ctx.status(201),
+      ctx.json({
+        id: '3',
+        content,
+        authorName: 'Current User',
+        createdAt: new Date().toISOString(),
+      })
+    );
+  })
+);
+
+// Start server before tests
+beforeAll(() => server.listen());
+
+// Reset handlers after each test
+afterEach(() => server.resetHandlers());
+
+// Close server after all tests
+afterAll(() => server.close());
+
+describe('Tweets Feature Integration with MSW', () => {
+  it('loads and displays tweets from API', async () => {
+    renderWithProviders(<TweetsPage />);
+    
+    // Wait for tweets to load
+    await waitFor(() => {
+      expect(screen.getByText('Mocked tweet 1')).toBeInTheDocument();
+      expect(screen.getByText('Mocked tweet 2')).toBeInTheDocument();
+    });
+  });
+  
+  it('handles server error', async () => {
+    // Override handler for this test to simulate error
+    server.use(
+      rest.get('/api/tweets', (req, res, ctx) => {
+        return res(ctx.status(500));
+      })
+    );
+    
+    renderWithProviders(<TweetsPage />);
+    
+    // Wait for error state
+    await waitFor(() => {
+      expect(screen.getByText(/error loading tweets/i)).toBeInTheDocument();
+    });
+  });
+  
+  it('creates and adds new tweet', async () => {
+    renderWithProviders(<TweetsPage />);
+    
+    // Wait for initial tweets to load
+    await waitFor(() => {
+      expect(screen.getByText('Mocked tweet 1')).toBeInTheDocument();
+    });
+    
+    // Create a new tweet
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'My new tweet' } });
+    fireEvent.click(screen.getByRole('button', { name: /post/i }));
+    
+    // Wait for the new tweet to appear
+    await waitFor(() => {
+      expect(screen.getByText('My new tweet')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+## Testing State Management
+
+Test components with state management (Redux, Context, etc.):
+
+```typescript
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import tweetsReducer from '../slices/tweetsSlice';
+import { TweetsContainer } from '../containers/TweetsContainer';
+
+describe('Tweets with Redux State', () => {
+  // Create a test store with initial state
+  const createTestStore = (initialState = {}) => {
+    return configureStore({
+      reducer: {
+        tweets: tweetsReducer,
+      },
+      preloadedState: initialState,
+    });
+  };
+  
+  it('displays tweets from Redux state', () => {
+    const initialState = {
+      tweets: {
+        items: [
+          { id: '1', content: 'Redux tweet 1', authorName: 'User 1', createdAt: new Date().toISOString() },
+          { id: '2', content: 'Redux tweet 2', authorName: 'User 2', createdAt: new Date().toISOString() },
+        ],
+        loading: false,
+        error: null,
+      },
+    };
+    
+    const store = createTestStore(initialState);
+    
+    render(
+      <Provider store={store}>
+        <TweetsContainer />
+      </Provider>
+    );
+    
+    expect(screen.getByText('Redux tweet 1')).toBeInTheDocument();
+    expect(screen.getByText('Redux tweet 2')).toBeInTheDocument();
+  });
+  
+  it('dispatches like action when like button is clicked', () => {
+    const initialState = {
+      tweets: {
+        items: [
+          { id: '1', content: 'Redux tweet', authorName: 'User 1', likes: 0, createdAt: new Date().toISOString() },
+        ],
+        loading: false,
+        error: null,
+      },
+    };
+    
+    const store = createTestStore(initialState);
+    
+    // Spy on store dispatch
+    const dispatchSpy = vi.spyOn(store, 'dispatch');
+    
+    render(
+      <Provider store={store}>
+        <TweetsContainer />
+      </Provider>
+    );
+    
+    // Click like button
+    fireEvent.click(screen.getByRole('button', { name: /like/i }));
+    
+    // Check if correct action was dispatched
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: expect.stringContaining('likeTweet'),
+        payload: '1'  // Tweet ID
+      })
+    );
+  });
+});
+```
+
+## Integration Testing Best Practices
+
+1. **Focus on feature behaviors**:
+   - Test how components work together to deliver a feature.
+   - Test user flows across component boundaries.
+
+2. **Mock external dependencies**:
+   - Use realistic API mocks with MSW.
+   - Mock state management stores with test data.
+
+3. **Test all states**:
+   - Loading, success, error, and empty states.
+   - Edge cases that might occur across components.
+
+4. **Include form validations**:
+   - Test validation logic across forms and fields.
+   - Test submission flows with valid and invalid data.
+
+5. **Use realistic data**:
+   - Use data structures that match your actual API responses.
+   - Include both typical and edge case data scenarios.
+
+6. **Test performance concerns**:
+   - Check for unnecessary re-renders.
+   - Test loading performance with larger datasets.
+
+7. **Test feature interactions**:
+   - Ensure features work together properly.
+   - Test data flow between different parts of the application.
+
+## Running Integration Tests
+
+Add these scripts to `apps/web/package.json`:
+
+```json
+{
+  "scripts": {
+    "test:integration": "vitest run -c vite.config.integration.ts"
+  }
+}
+```
+
+Remember that integration tests should provide more comprehensive coverage of user flows and feature behavior than unit tests, but be more focused and faster than full E2E tests.

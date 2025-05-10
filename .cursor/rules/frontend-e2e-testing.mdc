@@ -1,0 +1,304 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Frontend E2E Testing Guide
+
+This guide outlines best practices for end-to-end (E2E) testing using Playwright in the [apps/web](mdc:apps/web) application.
+
+## E2E Testing Approach
+
+E2E tests verify that entire features work correctly from the user's perspective, by automating browser interactions. We use Playwright for E2E testing, which is configured in [tools/playwright-config](mdc:tools/playwright-config).
+
+## Test Structure
+
+### 1. E2E Test Location
+
+E2E tests should be stored in the designated test directory:
+
+```
+apps/web/
+  tests/
+    e2e/
+      auth/
+        login.spec.ts
+        register.spec.ts
+      tweets/
+        create-tweet.spec.ts
+        view-tweets.spec.ts
+```
+
+### 2. Basic E2E Test Structure
+
+```typescript
+// apps/web/tests/e2e/auth/login.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Login Flow', () => {
+  test.beforeEach(async ({ page }) => {
+    // Navigate to login page before each test
+    await page.goto('/login');
+  });
+
+  test('successful login redirects to dashboard', async ({ page }) => {
+    // Fill login form
+    await page.fill('input[name="email"]', 'test@example.com');
+    await page.fill('input[name="password"]', 'password123');
+    
+    // Submit the form
+    await page.click('button[type="submit"]');
+    
+    // Verify redirect to dashboard
+    await expect(page).toHaveURL('/dashboard');
+    
+    // Verify dashboard elements are present
+    await expect(page.locator('h1')).toContainText('Dashboard');
+  });
+
+  test('displays error with invalid credentials', async ({ page }) => {
+    // Fill login form with invalid credentials
+    await page.fill('input[name="email"]', 'wrong@example.com');
+    await page.fill('input[name="password"]', 'wrongpassword');
+    
+    // Submit the form
+    await page.click('button[type="submit"]');
+    
+    // Verify error message is displayed
+    await expect(page.locator('[data-testid="error-message"]'))
+      .toContainText('Invalid email or password');
+    
+    // Verify we're still on the login page
+    await expect(page).toHaveURL('/login');
+  });
+});
+```
+
+## Organizing E2E Tests
+
+### 1. Feature-Based Organization
+
+Organize tests by feature or user flow:
+
+```
+e2e/
+  auth/             # Authentication related tests
+  tweets/           # Tweet-related functionality
+  user-profile/     # User profile management
+```
+
+### 2. Page Object Model (Optional)
+
+For larger applications, consider using the Page Object Model pattern:
+
+```typescript
+// Page object for login page
+class LoginPage {
+  constructor(private page) {}
+
+  async navigate() {
+    await this.page.goto('/login');
+  }
+
+  async login(email, password) {
+    await this.page.fill('input[name="email"]', email);
+    await this.page.fill('input[name="password"]', password);
+    await this.page.click('button[type="submit"]');
+  }
+
+  async getErrorMessage() {
+    return this.page.locator('[data-testid="error-message"]').textContent();
+  }
+}
+
+// Using the page object in a test
+test('successful login', async ({ page }) => {
+  const loginPage = new LoginPage(page);
+  await loginPage.navigate();
+  await loginPage.login('test@example.com', 'password123');
+  await expect(page).toHaveURL('/dashboard');
+});
+```
+
+## Test Authentication
+
+### 1. Auth Setup Test
+
+Create a reusable authentication setup:
+
+```typescript
+// auth.setup.ts - reusable authentication
+import { test as setup } from '@playwright/test';
+
+setup('authenticate', async ({ page }) => {
+  // Log in
+  await page.goto('/login');
+  await page.fill('input[name="email"]', 'test@example.com');
+  await page.fill('input[name="password"]', 'password123');
+  await page.click('button[type="submit"]');
+  
+  // Verify we're logged in
+  await page.waitForURL('/dashboard');
+  
+  // Store authentication state
+  await page.context().storageState({ path: 'playwright/.auth/user.json' });
+});
+```
+
+### 2. Using Stored Auth State
+
+```typescript
+// tests that require authentication
+import { test } from '@playwright/test';
+
+// Use stored auth state
+test.use({ storageState: 'playwright/.auth/user.json' });
+
+test('create new tweet when authenticated', async ({ page }) => {
+  // Test will run with the authenticated state
+  await page.goto('/tweets/new');
+  // ... rest of test
+});
+```
+
+## Testing Responsive Design
+
+Test different viewport sizes:
+
+```typescript
+// Mobile view test
+test('mobile responsive layout', async ({ page }) => {
+  // Set mobile viewport
+  await page.setViewportSize({ width: 375, height: 667 });
+  await page.goto('/');
+  
+  // Verify mobile navigation is present
+  await expect(page.locator('.mobile-menu-button')).toBeVisible();
+  
+  // Open mobile menu
+  await page.click('.mobile-menu-button');
+  
+  // Verify menu items
+  await expect(page.locator('.mobile-menu a[href="/profile"]')).toBeVisible();
+});
+```
+
+## Visual Regression Testing
+
+For visual regression testing, use Playwright's screenshot capabilities:
+
+```typescript
+test('dashboard visual regression', async ({ page }) => {
+  await page.goto('/dashboard');
+  
+  // Wait for any async content to load
+  await page.waitForSelector('.dashboard-stats', { state: 'visible' });
+  
+  // Take screenshot for comparison
+  await expect(page).toHaveScreenshot('dashboard.png', {
+    fullPage: true,
+    // Adjust threshold for acceptable differences
+    threshold: 0.2,
+  });
+});
+```
+
+## Testing Data Management
+
+### 1. Test Data Setup
+
+Create helpers to set up test data:
+
+```typescript
+// test-data-helpers.ts
+import { APIRequestContext } from '@playwright/test';
+
+export async function createTestTweet(request: APIRequestContext, content: string) {
+  const response = await request.post('/api/tweets', {
+    data: { content },
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  return await response.json();
+}
+```
+
+### 2. Using API for Test Setup
+
+```typescript
+import { test, expect } from '@playwright/test';
+import { createTestTweet } from '../helpers/test-data-helpers';
+
+test('displays tweet detail page', async ({ page, request }) => {
+  // Create a tweet via API for testing
+  const tweet = await createTestTweet(request, 'Test tweet for E2E');
+  
+  // Navigate to the tweet detail page
+  await page.goto(`/tweets/${tweet.id}`);
+  
+  // Verify tweet content is displayed
+  await expect(page.locator('[data-testid="tweet-content"]'))
+    .toContainText('Test tweet for E2E');
+});
+```
+
+## E2E Testing Best Practices
+
+1. **Focus on critical user journeys**:
+   - Prioritize the most important user flows.
+   - Don't try to test everything with E2E tests.
+
+2. **Keep tests independent**:
+   - Each test should run independently and clean up after itself.
+   - Avoid dependencies between tests.
+
+3. **Use appropriate selectors**:
+   - Use data attributes like `data-testid` for test stability.
+   - Prefer semantic selectors (role, label) where possible.
+
+4. **Manage test data carefully**:
+   - Create and clean up test data for each test.
+   - Use API calls for test data setup when possible.
+
+5. **Handle timing and async operations**:
+   - Use waitFor methods instead of arbitrary timeouts.
+   - Example: `await page.waitForSelector('.loaded-content')`.
+
+6. **Test across browsers**:
+   - Run tests on multiple browsers to catch compatibility issues.
+   - Playwright makes this easy with projects configuration.
+
+7. **Implement retry logic for flaky tests**:
+   - Configure reasonable retry counts.
+   - Analyze and fix consistently failing tests.
+
+## Running E2E Tests
+
+Add these scripts to `apps/web/package.json`:
+
+```json
+{
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
+  }
+}
+```
+
+## Continuous Integration
+
+Run E2E tests in CI/CD pipelines:
+
+```yaml
+# Example GitHub Actions workflow step
+- name: Run E2E tests
+  run: pnpm test:e2e
+  env:
+    CI: true
+```
+
+Remember that E2E tests should focus on critical user journeys and simulate real user behavior across the application.

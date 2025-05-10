@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Server API Structure Guide
+
+The server API is located in [apps/server/src](mdc:apps/server/src) and works with the API package:
+
+- [apps/server/src](mdc:apps/server/src): Contains the main server implementation.
+- [packages/api/src/server](mdc:packages/api/src/server): Contains shared API logic used by the server.
+- [packages/api/src/server/router](mdc:packages/api/src/server/router): Houses API route definitions organized by feature domain.
+
+The server provides RESTful and/or GraphQL endpoints for the web client and other potential consumers. It connects to the database using the DB package and handles authentication via the auth package.

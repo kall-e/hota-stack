@@ -1,0 +1,335 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Visual Regression Testing Guide
+
+This guide outlines best practices for visual regression testing in the [apps/web](mdc:apps/web) application to ensure UI consistency when features are updated.
+
+## Visual Regression Testing Approach
+
+Visual regression testing captures screenshots of UI components and pages, then compares them against baseline images to detect unwanted visual changes. This helps catch unintended UI regressions when making code changes.
+
+## Setting Up Visual Regression Testing
+
+### 1. Using Playwright for Visual Testing
+
+Playwright has built-in support for visual comparisons. Configure it in your project:
+
+```typescript
+// apps/web/playwright.config.ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  // Other Playwright config options...
+  
+  // Configure screenshot comparison
+  expect: {
+    toHaveScreenshot: {
+      // Maximum allowed difference in pixels
+      maxDiffPixels: 100,
+      
+      // Threshold for color differences
+      threshold: 0.2,
+      
+      // Ignore anti-aliasing differences
+      ignoreAntialiasing: true,
+    },
+  },
+});
+```
+
+### 2. Visual Test Structure
+
+```typescript
+// apps/web/tests/visual/components.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Component Visual Tests', () => {
+  test('button component states', async ({ page }) => {
+    // Navigate to component story or demo page
+    await page.goto('/component-demo?component=Button');
+    
+    // Test primary button
+    await expect(page.locator('.button-primary')).toHaveScreenshot('button-primary.png');
+    
+    // Test secondary button
+    await expect(page.locator('.button-secondary')).toHaveScreenshot('button-secondary.png');
+    
+    // Test disabled state
+    await expect(page.locator('.button-disabled')).toHaveScreenshot('button-disabled.png');
+    
+    // Test hover state
+    await page.hover('.button-primary');
+    await expect(page.locator('.button-primary')).toHaveScreenshot('button-primary-hover.png');
+  });
+  
+  test('card component', async ({ page }) => {
+    await page.goto('/component-demo?component=Card');
+    await expect(page.locator('.card')).toHaveScreenshot('card-default.png');
+  });
+});
+```
+
+### 3. Page-Level Visual Tests
+
+```typescript
+// apps/web/tests/visual/pages.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Page Visual Tests', () => {
+  test('dashboard page layout', async ({ page }) => {
+    // Set up authentication state (could use stored auth state)
+    await page.goto('/login');
+    await page.fill('input[name="email"]', 'test@example.com');
+    await page.fill('input[name="password"]', 'password123');
+    await page.click('button[type="submit"]');
+    
+    // Wait for navigation and data loading
+    await page.waitForURL('/dashboard');
+    await page.waitForSelector('.dashboard-stats', { state: 'visible' });
+    
+    // Take full page screenshot
+    await expect(page).toHaveScreenshot('dashboard-page.png', {
+      fullPage: true,
+    });
+  });
+  
+  test('tweet detail page', async ({ page }) => {
+    // Navigate to a specific tweet detail page
+    await page.goto('/tweets/1');
+    await page.waitForSelector('.tweet-content', { state: 'visible' });
+    
+    // Take a screenshot of the specific element
+    await expect(page.locator('.tweet-container')).toHaveScreenshot('tweet-detail.png');
+  });
+});
+```
+
+## Testing Responsive Layouts
+
+Test different viewport sizes:
+
+```typescript
+// apps/web/tests/visual/responsive.spec.ts
+import { test, expect } from '@playwright/test';
+
+// Define viewport sizes to test
+const viewports = [
+  { width: 375, height: 667, name: 'mobile' },  // iPhone SE
+  { width: 768, height: 1024, name: 'tablet' }, // iPad
+  { width: 1280, height: 800, name: 'desktop' },
+];
+
+test.describe('Responsive Visual Tests', () => {
+  for (const viewport of viewports) {
+    test(`homepage at ${viewport.name} viewport`, async ({ page }) => {
+      // Set viewport size
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      
+      // Navigate to page
+      await page.goto('/');
+      
+      // Wait for any animations to complete
+      await page.waitForTimeout(500);
+      
+      // Take screenshot with viewport name in the filename
+      await expect(page).toHaveScreenshot(`homepage-${viewport.name}.png`, { 
+        fullPage: true 
+      });
+    });
+  }
+});
+```
+
+## Testing with Theme Variations
+
+Test different themes or color modes:
+
+```typescript
+// apps/web/tests/visual/themes.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Theme Visual Tests', () => {
+  test('dashboard in light mode', async ({ page }) => {
+    // Navigate to dashboard with light theme
+    await page.goto('/dashboard?theme=light');
+    
+    // Wait for content and theme to load
+    await page.waitForSelector('.dashboard-content', { state: 'visible' });
+    
+    // Capture screenshot
+    await expect(page).toHaveScreenshot('dashboard-light.png', { fullPage: true });
+  });
+  
+  test('dashboard in dark mode', async ({ page }) => {
+    // Navigate to dashboard with dark theme
+    await page.goto('/dashboard?theme=dark');
+    
+    // Wait for content and theme to load
+    await page.waitForSelector('.dashboard-content', { state: 'visible' });
+    
+    // Capture screenshot
+    await expect(page).toHaveScreenshot('dashboard-dark.png', { fullPage: true });
+  });
+});
+```
+
+## Component Storybook Integration
+
+If using Storybook for component development, integrate with visual testing:
+
+```typescript
+// apps/web/tests/visual/storybook.spec.ts
+import { test, expect } from '@playwright/test';
+
+// Component states to test
+const buttonStates = [
+  'primary',
+  'secondary',
+  'primary-disabled',
+  'primary-loading',
+  'destructive'
+];
+
+test.describe('Storybook Component Visual Tests', () => {
+  test.beforeEach(async ({ page }) => {
+    // Navigate to Storybook
+    await page.goto('http://localhost:6006');
+  });
+  
+  test('Button component states', async ({ page }) => {
+    // Navigate to Button component in Storybook
+    await page.click('text=Button');
+    
+    // Test each button state
+    for (const state of buttonStates) {
+      // Navigate to the specific button state
+      await page.click(`text=${state}`);
+      
+      // Wait for the canvas to update
+      await page.waitForTimeout(500);
+      
+      // Find the Storybook iframe and take screenshot within it
+      const frame = page.frameLocator('#storybook-preview-iframe');
+      await expect(frame.locator('#root')).toHaveScreenshot(`button-${state}.png`);
+    }
+  });
+});
+```
+
+## Managing Visual Test Baselines
+
+### 1. Updating Baselines
+
+When intentional UI changes are made, update the baseline images:
+
+```bash
+# Update all baseline screenshots
+npx playwright test --update-snapshots
+
+# Update specific test baselines
+npx playwright test dashboard.spec.ts --update-snapshots
+```
+
+### 2. Reviewing Visual Differences
+
+When tests fail due to visual differences:
+
+1. Review the differences in the Playwright report
+2. Determine if the changes are intentional or regression bugs
+3. Fix bugs or update baselines accordingly
+
+## CI/CD Integration
+
+Add visual testing to your CI pipeline:
+
+```yaml
+# .github/workflows/visual-testing.yml
+name: Visual Regression Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  visual-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Serve application
+        run: npm run serve &
+      
+      - name: Run visual tests
+        run: npx playwright test --grep visual
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: visual-test-results
+          path: |
+            playwright-report/
+            test-results/
+```
+
+## Visual Regression Testing Best Practices
+
+1. **Be selective**:
+   - Don't capture screenshots of everything.
+   - Focus on critical UI components and pages.
+
+2. **Consistent test environment**:
+   - Use the same browser and OS for baseline and comparison.
+   - Ensure fonts are consistent across environments.
+
+3. **Handle dynamic content**:
+   - Mock API responses with consistent data.
+   - Set fixed dates/times for tests.
+   - Hide or replace content that changes frequently.
+
+4. **Manage test data**:
+   - Use predictable, consistent test data.
+   - Seed the database with known values for visual tests.
+
+5. **Handle animations**:
+   - Disable animations during tests or wait for them to complete.
+   - Set CSS rules to disable transitions in test environment.
+
+6. **Responsive testing**:
+   - Test critical breakpoints, not every possible size.
+   - Focus on common device dimensions.
+
+7. **Performance considerations**:
+   - Visual tests are resource intensive and slower.
+   - Run them less frequently (e.g., on main branch, not every commit).
+
+## Running Visual Tests
+
+Add these scripts to `apps/web/package.json`:
+
+```json
+{
+  "scripts": {
+    "test:visual": "playwright test tests/visual/",
+    "test:visual:update": "playwright test tests/visual/ --update-snapshots"
+  }
+}
+```
+
+Remember that visual regression tests complement rather than replace other testing approaches. They're most valuable for catching unintended visual changes in UI-heavy applications where appearance is crucial.

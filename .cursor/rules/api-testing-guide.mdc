@@ -1,0 +1,271 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# API Testing Guide
+
+This guide provides practical examples for testing the API endpoints and services in the [packages/api](mdc:packages/api) package.
+
+## Setting Up Test Environment
+
+### 1. Create a Test Setup File
+
+Create a setup file in `packages/api/tests/setup.ts`:
+
+```typescript
+import { beforeAll, afterAll, afterEach, vi } from 'vitest';
+
+// Mock database
+export const prismaMock = {
+  tweet: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  user: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+  },
+  // Add other models as needed
+  $transaction: vi.fn((callback) => callback(prismaMock)),
+  $connect: vi.fn(),
+  $disconnect: vi.fn(),
+};
+
+// Global setup
+beforeAll(() => {
+  // Set up global test environment
+});
+
+// Clean up after each test
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+// Clean up after all tests
+afterAll(() => {
+  // Cleanup global test environment
+});
+```
+
+### 2. Create Mock Folder for Common Mocks
+
+Create a `__mocks__` directory for common mock implementations:
+
+```
+packages/api/
+  __mocks__/
+    prisma.ts
+    auth.ts
+  tests/
+    setup.ts
+    tweet-router.test.ts
+    user-router.test.ts
+```
+
+## Testing API Routes
+
+Example test for a tweet router:
+
+```typescript
+// packages/api/tests/tweet-router.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { tweetRouter } from '../src/server/router/tweet';
+import { prismaMock } from '../__mocks__/prisma';
+import { createCallerFactory } from 'your-api-framework'; // Update with actual import
+
+// Mock the context
+const mockContext = {
+  prisma: prismaMock,
+  session: {
+    user: { id: 'user-1', name: 'Test User', email: 'test@example.com' }
+  }
+};
+
+// Create a test caller
+const createCaller = createCallerFactory(tweetRouter);
+
+describe('Tweet Router', () => {
+  let caller;
+  
+  beforeEach(() => {
+    vi.clearAllMocks();
+    caller = createCaller(mockContext);
+  });
+  
+  describe('getTweet', () => {
+    it('should return a tweet when it exists', async () => {
+      // Arrange
+      const mockTweet = { 
+        id: 'tweet-1', 
+        content: 'Test tweet', 
+        authorId: 'user-1',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      prismaMock.tweet.findUnique.mockResolvedValue(mockTweet);
+      
+      // Act
+      const result = await caller.getTweet({ id: 'tweet-1' });
+      
+      // Assert
+      expect(prismaMock.tweet.findUnique).toHaveBeenCalledWith({
+        where: { id: 'tweet-1' }
+      });
+      expect(result).toEqual(mockTweet);
+    });
+    
+    it('should throw an error when tweet does not exist', async () => {
+      // Arrange
+      prismaMock.tweet.findUnique.mockResolvedValue(null);
+      
+      // Act & Assert
+      await expect(caller.getTweet({ id: 'non-existent' }))
+        .rejects.toThrow('Tweet not found');
+    });
+  });
+  
+  describe('createTweet', () => {
+    it('should create a tweet successfully', async () => {
+      // Arrange
+      const tweetData = { content: 'New test tweet' };
+      const createdTweet = { 
+        id: 'new-tweet', 
+        content: tweetData.content, 
+        authorId: 'user-1',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      prismaMock.tweet.create.mockResolvedValue(createdTweet);
+      
+      // Act
+      const result = await caller.createTweet(tweetData);
+      
+      // Assert
+      expect(prismaMock.tweet.create).toHaveBeenCalledWith({
+        data: {
+          content: tweetData.content,
+          author: { connect: { id: 'user-1' } }
+        }
+      });
+      expect(result).toEqual(createdTweet);
+    });
+    
+    it('should throw an error when content is empty', async () => {
+      // Act & Assert
+      await expect(caller.createTweet({ content: '' }))
+        .rejects.toThrow('Content cannot be empty');
+    });
+  });
+});
+```
+
+## Testing Services
+
+For service-layer testing:
+
+```typescript
+// packages/api/tests/tweet-service.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { TweetService } from '../src/services/tweet-service';
+import { prismaMock } from '../__mocks__/prisma';
+
+describe('TweetService', () => {
+  let tweetService;
+  
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tweetService = new TweetService(prismaMock);
+  });
+  
+  describe('getUserTweets', () => {
+    it('should return user tweets', async () => {
+      // Arrange
+      const userId = 'user-1';
+      const mockTweets = [
+        { id: 'tweet-1', content: 'First tweet', authorId: userId },
+        { id: 'tweet-2', content: 'Second tweet', authorId: userId }
+      ];
+      
+      prismaMock.tweet.findMany.mockResolvedValue(mockTweets);
+      
+      // Act
+      const result = await tweetService.getUserTweets(userId);
+      
+      // Assert
+      expect(prismaMock.tweet.findMany).toHaveBeenCalledWith({
+        where: { authorId: userId },
+        orderBy: { createdAt: 'desc' }
+      });
+      expect(result).toEqual(mockTweets);
+    });
+  });
+});
+```
+
+## Testing with Authentication
+
+For testing authenticated routes:
+
+```typescript
+// packages/api/tests/authenticated-routes.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { protectedRouter } from '../src/server/router/protected';
+import { createCallerFactory } from 'your-api-framework'; // Update with actual import
+import { prismaMock } from '../__mocks__/prisma';
+
+describe('Protected Routes', () => {
+  describe('with authenticated user', () => {
+    const mockContext = {
+      prisma: prismaMock,
+      session: {
+        user: { id: 'user-1', name: 'Test User', email: 'test@example.com' }
+      }
+    };
+    
+    const caller = createCallerFactory(protectedRouter)(mockContext);
+    
+    it('should allow access to protected route', async () => {
+      // Test implementation
+    });
+  });
+  
+  describe('with unauthenticated user', () => {
+    const mockContext = {
+      prisma: prismaMock,
+      session: null
+    };
+    
+    const caller = createCallerFactory(protectedRouter)(mockContext);
+    
+    it('should deny access to protected route', async () => {
+      // Act & Assert
+      await expect(caller.someProtectedMethod())
+        .rejects.toThrow('Unauthorized');
+    });
+  });
+});
+```
+
+## Integration with Vitest Config
+
+To run these tests, update your package.json in the API package:
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  }
+}
+```
+
+Remember to create appropriate mocks for external dependencies and to test both success and error paths for comprehensive test coverage.

@@ -1,0 +1,456 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Frontend Test-Driven Development (TDD) Guide
+
+This guide outlines best practices for implementing test-driven development for frontend features in the [apps/web](mdc:apps/web) application.
+
+## Test-Driven Development Approach
+
+Test-Driven Development (TDD) follows a "Red-Green-Refactor" cycle:
+1. **Red**: Write a failing test that defines the desired behavior
+2. **Green**: Write the minimal code necessary to pass the test
+3. **Refactor**: Improve the code while ensuring tests still pass
+
+## TDD for React Components
+
+### 1. Simple Component Example
+
+Let's walk through the TDD process for creating a `TweetCard` component:
+
+**Step 1: Write the failing test first**
+
+```typescript
+// TweetCard.test.tsx
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import TweetCard from './TweetCard';
+
+describe('TweetCard', () => {
+  const mockTweet = {
+    id: '1',
+    content: 'This is a test tweet',
+    authorName: 'Test User',
+    createdAt: '2023-01-01T12:00:00Z'
+  };
+  
+  it('renders tweet content and author', () => {
+    render(<TweetCard tweet={mockTweet} />);
+    
+    expect(screen.getByText(mockTweet.content)).toBeInTheDocument();
+    expect(screen.getByText(mockTweet.authorName)).toBeInTheDocument();
+  });
+  
+  it('formats the creation date', () => {
+    render(<TweetCard tweet={mockTweet} />);
+    
+    // Assuming we want to display date in a specific format
+    expect(screen.getByText(/Jan 1, 2023/)).toBeInTheDocument();
+  });
+});
+```
+
+**Step 2: Implement the minimal component to pass the test**
+
+```tsx
+// TweetCard.tsx
+import { formatDate } from '../utils/date-utils';
+
+interface TweetProps {
+  tweet: {
+    id: string;
+    content: string;
+    authorName: string;
+    createdAt: string;
+  };
+}
+
+export default function TweetCard({ tweet }: TweetProps) {
+  return (
+    <div className="tweet-card">
+      <p>{tweet.content}</p>
+      <div className="tweet-meta">
+        <span>{tweet.authorName}</span>
+        <span>{formatDate(tweet.createdAt)}</span>
+      </div>
+    </div>
+  );
+}
+```
+
+**Step 3: Refactor while keeping tests green**
+
+```tsx
+// TweetCard.tsx (refactored)
+import { formatDate } from '../utils/date-utils';
+
+interface Tweet {
+  id: string;
+  content: string;
+  authorName: string;
+  createdAt: string;
+}
+
+interface TweetCardProps {
+  tweet: Tweet;
+}
+
+export default function TweetCard({ tweet }: TweetCardProps) {
+  return (
+    <div className="tweet-card">
+      <p className="tweet-content">{tweet.content}</p>
+      <div className="tweet-meta">
+        <span className="tweet-author">{tweet.authorName}</span>
+        <time className="tweet-time" dateTime={tweet.createdAt}>
+          {formatDate(tweet.createdAt)}
+        </time>
+      </div>
+    </div>
+  );
+}
+```
+
+### 2. TDD for Interactive Components
+
+**Step 1: Write failing tests for interactions**
+
+```typescript
+// LikeButton.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import LikeButton from './LikeButton';
+
+describe('LikeButton', () => {
+  it('displays the initial like count', () => {
+    render(<LikeButton count={5} />);
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
+  
+  it('calls onLike when clicked', () => {
+    const mockOnLike = vi.fn();
+    render(<LikeButton count={5} onLike={mockOnLike} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    expect(mockOnLike).toHaveBeenCalledTimes(1);
+  });
+  
+  it('updates the counter visually when clicked', () => {
+    render(<LikeButton count={5} onLike={() => {}} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    
+    // Optimistic UI update should show incremented count
+    expect(screen.getByText('6')).toBeInTheDocument();
+  });
+});
+```
+
+**Step 2: Implement the component**
+
+```tsx
+// LikeButton.tsx
+import { useState } from 'react';
+
+interface LikeButtonProps {
+  count: number;
+  onLike?: () => void;
+}
+
+export default function LikeButton({ count, onLike }: LikeButtonProps) {
+  const [optimisticCount, setOptimisticCount] = useState(count);
+  
+  const handleClick = () => {
+    setOptimisticCount(optimisticCount + 1);
+    if (onLike) onLike();
+  };
+  
+  return (
+    <button className="like-button" onClick={handleClick}>
+      <span>❤️</span>
+      <span>{optimisticCount}</span>
+    </button>
+  );
+}
+```
+
+## TDD for Custom Hooks
+
+### 1. Write Failing Tests First
+
+```typescript
+// useCounter.test.ts
+import { renderHook, act } from '@testing-library/react-hooks';
+import { describe, it, expect } from 'vitest';
+import { useCounter } from './useCounter';
+
+describe('useCounter', () => {
+  it('initializes with the given value', () => {
+    const { result } = renderHook(() => useCounter(5));
+    expect(result.current.count).toBe(5);
+  });
+  
+  it('increments the counter', () => {
+    const { result } = renderHook(() => useCounter(0));
+    
+    act(() => {
+      result.current.increment();
+    });
+    
+    expect(result.current.count).toBe(1);
+  });
+  
+  it('decrements the counter', () => {
+    const { result } = renderHook(() => useCounter(5));
+    
+    act(() => {
+      result.current.decrement();
+    });
+    
+    expect(result.current.count).toBe(4);
+  });
+  
+  it('prevents negative values if preventNegative is true', () => {
+    const { result } = renderHook(() => useCounter(0, { preventNegative: true }));
+    
+    act(() => {
+      result.current.decrement();
+    });
+    
+    expect(result.current.count).toBe(0);
+  });
+});
+```
+
+### 2. Implement the Hook
+
+```typescript
+// useCounter.ts
+import { useState } from 'react';
+
+interface CounterOptions {
+  preventNegative?: boolean;
+}
+
+export function useCounter(initialCount = 0, options: CounterOptions = {}) {
+  const [count, setCount] = useState(initialCount);
+  
+  const increment = () => setCount(count + 1);
+  
+  const decrement = () => {
+    if (options.preventNegative && count === 0) {
+      return;
+    }
+    setCount(count - 1);
+  };
+  
+  return { count, increment, decrement };
+}
+```
+
+## TDD for Features
+
+For larger features, use the same TDD approach, but with integration tests:
+
+### 1. Define the Feature Requirements and Tests
+
+```typescript
+// TweetFeed.test.tsx
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { TweetFeed } from './TweetFeed';
+import { renderWithProviders } from '../../test-utils';
+import { fetchTweets, likeTweet } from '../../api/tweets';
+
+// Mock API
+vi.mock('../../api/tweets', () => ({
+  fetchTweets: vi.fn(),
+  likeTweet: vi.fn()
+}));
+
+describe('TweetFeed Feature', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  
+  it('fetches and displays tweets', async () => {
+    // Define expected behavior
+    const mockTweets = [
+      { id: '1', content: 'Test tweet 1', authorName: 'User 1', likes: 5, createdAt: new Date().toISOString() }
+    ];
+    
+    fetchTweets.mockResolvedValue(mockTweets);
+    
+    // Render component with test data
+    renderWithProviders(<TweetFeed />);
+    
+    // Verify loading state
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    
+    // Wait for tweets to load
+    await waitFor(() => {
+      expect(screen.getByText('Test tweet 1')).toBeInTheDocument();
+    });
+  });
+  
+  it('handles like button clicks', async () => {
+    // Setup mock data
+    const mockTweets = [
+      { id: '1', content: 'Test tweet', authorName: 'User 1', likes: 5, createdAt: new Date().toISOString() }
+    ];
+    
+    fetchTweets.mockResolvedValue(mockTweets);
+    likeTweet.mockResolvedValue({ ...mockTweets[0], likes: 6 });
+    
+    // Render component
+    renderWithProviders(<TweetFeed />);
+    
+    // Wait for content to load
+    await waitFor(() => {
+      expect(screen.getByText('Test tweet')).toBeInTheDocument();
+    });
+    
+    // Find and click like button
+    const likeButton = screen.getByRole('button', { name: /like/i });
+    fireEvent.click(likeButton);
+    
+    // Verify API call
+    expect(likeTweet).toHaveBeenCalledWith('1');
+    
+    // Verify optimistic update
+    expect(screen.getByText('6')).toBeInTheDocument();
+  });
+});
+```
+
+### 2. Implement the Feature Step by Step
+
+Implement each piece of functionality to satisfy the tests:
+
+```tsx
+// TweetFeed.tsx
+import { useState, useEffect } from 'react';
+import { fetchTweets, likeTweet } from '../../api/tweets';
+import TweetCard from '../components/TweetCard';
+import LikeButton from '../components/LikeButton';
+
+export function TweetFeed() {
+  const [tweets, setTweets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  useEffect(() => {
+    loadTweets();
+  }, []);
+  
+  const loadTweets = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchTweets();
+      setTweets(data);
+      setError(null);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleLike = async (tweetId) => {
+    // Optimistic update
+    setTweets(tweets.map(tweet => 
+      tweet.id === tweetId ? { ...tweet, likes: tweet.likes + 1 } : tweet
+    ));
+    
+    try {
+      await likeTweet(tweetId);
+    } catch (err) {
+      // Revert optimistic update on error
+      setTweets(tweets);
+      setError(err);
+    }
+  };
+  
+  if (loading) return <div>Loading tweets...</div>;
+  if (error) return <div>Error loading tweets. <button onClick={loadTweets}>Retry</button></div>;
+  if (tweets.length === 0) return <div>No tweets found</div>;
+  
+  return (
+    <div className="tweet-feed">
+      {tweets.map(tweet => (
+        <div key={tweet.id} className="tweet-item">
+          <TweetCard tweet={tweet} />
+          <LikeButton count={tweet.likes} onLike={() => handleLike(tweet.id)} />
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## TDD Workflow in Practice
+
+### 1. Start with Requirements
+
+Define clear requirements before writing tests:
+- What should the component/feature do?
+- What inputs does it accept?
+- What outputs or behaviors should it produce?
+- What edge cases should be handled?
+
+### 2. Write Tests from User Perspective
+
+- Focus on behavior, not implementation
+- Test what the user sees and can do
+- Test all user flows, including error states
+
+### 3. Implement Incrementally
+
+- Add the minimal code needed to pass each test
+- Don't optimize prematurely
+- Keep the red-green-refactor cycle short
+
+### 4. Refactor with Confidence
+
+- Once tests pass, refactor code to improve:
+  - Code readability
+  - Performance
+  - Reusability
+- Run tests after each change to ensure functionality is preserved
+
+## TDD Best Practices for Frontend
+
+1. **Start small**:
+   - Begin with simple component tests
+   - Build up to more complex features
+
+2. **Mock external dependencies**:
+   - API calls, state management, router, etc.
+   - Use realistic mock data
+
+3. **Test behaviors, not implementation details**:
+   - Focus on what the user sees and interacts with
+   - Avoid testing component internals when possible
+
+4. **Keep tests focused**:
+   - Each test should verify one specific behavior
+   - Avoid creating tests that check multiple things at once
+
+5. **Maintain test isolation**:
+   - Each test should run independently
+   - Reset state between tests
+
+6. **Use descriptive test names**:
+   - Clearly describe the expected behavior
+   - Format: "it does this when that happens"
+
+7. **Test error handling**:
+   - Ensure components handle errors gracefully
+   - Test loading, error, and empty states
+
+8. **Test accessibility**:
+   - Include tests for keyboard navigation
+   - Test screen reader compatibility
+
+Remember that TDD isn't just about writing tests first—it's about using tests to drive your design and implementation decisions, resulting in more maintainable and robust code.

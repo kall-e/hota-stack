@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# API Package Structure Guide
+
+The API logic is implemented in [packages/api](mdc:packages/api):
+
+- [src/client/](mdc:packages/api/src/client): Client-side API utilities.
+- [src/server/](mdc:packages/api/src/server): Server-side API logic, including [router/](mdc:packages/api/src/server/router) for route definitions (e.g., [tweet.ts](mdc:packages/api/src/server/router/tweet.ts)).
+- [tests/](mdc:packages/api/tests): API tests.

@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Dashboard Feature Structure Guide
+
+The dashboard feature provides the main interface for users after login:
+
+- [features/dashboard/](mdc:apps/web/src/features/dashboard): Contains dashboard-specific components and logic.
+- [routes/_protected/dashboard/](mdc:apps/web/src/routes/_protected/dashboard): Protected routes for dashboard views.
+
+The dashboard aggregates user activity, displays recent tweets, and provides quick access to key features of the application. It relies on data from various API endpoints and uses shared UI components for consistent styling.

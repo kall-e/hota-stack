@@ -1,0 +1,27 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Architecture Guide
+
+This project uses a monorepo architecture with a clear separation of concerns:
+
+- **Applications**: Located in [apps/](mdc:apps), these are the end-user facing applications:
+  - [web/](mdc:apps/web): The frontend web application
+  - [server/](mdc:apps/server): The backend server
+
+- **Shared Packages**: Located in [packages/](mdc:packages), these contain reusable code shared across applications:
+  - [api/](mdc:packages/api): API client and server utilities
+  - [auth/](mdc:packages/auth): Authentication logic
+  - [db/](mdc:packages/db): Database schemas and utilities
+  - [email/](mdc:packages/email): Email templates and sending utilities
+  - [ui/](mdc:packages/ui): Shared UI components
+
+- **Development Tools**: Located in [tools/](mdc:tools), these are configuration packages for development tooling:
+  - [playwright-config/](mdc:tools/playwright-config): End-to-end testing configuration
+  - [tailwind/](mdc:tools/tailwind): CSS utility framework configuration
+  - [typescript/](mdc:tools/typescript): TypeScript configuration
+  - [vitest-config/](mdc:tools/vitest-config): Unit testing configuration
+
+The architecture follows a feature-based approach within each application, with clear boundaries between the UI, business logic, and data access layers.

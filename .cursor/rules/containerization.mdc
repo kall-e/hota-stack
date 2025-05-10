@@ -1,0 +1,94 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Containerization Guidelines
+
+## Docker Setup
+
+### Base Configuration
+
+- Base image: `node:22-alpine`
+- Non-root user for production containers
+- Multi-stage builds for optimized images
+
+### Build Process
+
+1. Prune dependencies for Docker:
+   ```bash
+   turbo prune web --docker
+   ```
+
+2. Build stages:
+   - Builder stage: Install dependencies and build
+   - Runner stage: Copy built artifacts and runtime dependencies
+
+### Environment Configuration
+
+- Set proper environment variables in Dockerfile
+- Use build arguments for configuration
+- Follow security best practices for secrets
+
+## Container Health
+
+### Healthcheck Configuration
+
+Add healthcheck to server container:
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:${SERVER_PORT}/health || exit 1
+```
+
+### Monitoring Points
+- API endpoints
+- Database connectivity
+- External service dependencies
+
+## Docker Compose
+
+### Development Setup
+
+```yaml
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
+```
+
+### Production Considerations
+
+- Use production-optimized configurations
+- Implement proper logging
+- Configure resource limits
+- Set up container networking
+- Use Docker secrets for sensitive data
+
+## Security Guidelines
+
+### Container Security
+
+- Run as non-root user
+- Use minimal base images
+- Scan for vulnerabilities
+- Keep base images updated
+
+### Environment Security
+
+- Use environment files
+- Implement secrets management
+- Follow least privilege principle
+
+## Related Documentation
+- [Project Configuration](mdc:project-configuration.mdc)
+- [Environment Setup](mdc:environment-setup.mdc)

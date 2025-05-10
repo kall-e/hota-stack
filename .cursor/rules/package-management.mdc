@@ -1,0 +1,69 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Package Management Guidelines
+
+## Using pnpm
+
+We use pnpm as our primary package manager for its efficiency and monorepo support.
+
+### Basic Commands
+
+- Install all dependencies:
+  ```bash
+  pnpm install
+  ```
+
+- Add a dependency to a specific package:
+  ```bash
+  pnpm --filter=<package-name> add <dependency>
+  ```
+
+### Workspace Management
+
+- Clean all generated files:
+  ```bash
+  pnpm clean
+  ```
+  This removes:
+  - .cache directories
+  - .turbo directories
+  - dist directories
+  - node_modules
+
+- Find package names in workspace:
+  ```bash
+  find . -maxdepth 3 -name "package.json" -exec grep '"name":' {} \;
+  ```
+
+### Migration Tools
+
+- Migrate dependencies to pnpm-workspace.yaml:
+  ```bash
+  pnpx codemod pnpm/catalog
+  ```
+
+## Dependency Management
+
+### Version Control
+- Lock file (`pnpm-lock.yaml`) must always be committed
+- Use exact versions in `package.json` for stability
+- Update dependencies through workspace commands
+
+### Workspace Structure
+- Define workspace packages in `pnpm-workspace.yaml`
+- Use proper scoping for internal packages (@repo/*)
+- Maintain clean dependency trees
+
+## Build and Cache
+
+### Turbo Integration
+- Leverage Turbo's cache for faster builds
+- Use proper task dependencies in `turbo.json`
+- Respect the build pipeline configuration
+
+## Related Documentation
+- [Monorepo Structure](mdc:monorepo-structure.mdc)
+- [Project Configuration](mdc:project-configuration.mdc)

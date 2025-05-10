@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Styling Guide (Tailwind CSS)
+
+This project uses Tailwind CSS for styling the web application.
+
+- **Tailwind Configuration**: The primary configuration for Tailwind CSS, including customizations to the default theme, plugins, and content sources, is located in the [tools/tailwind/](mdc:tools/tailwind) directory. You will likely find a `tailwind.config.js` or `tailwind.config.ts` file here.
+
+- **Global Styles**: Any global styles or base CSS layers, if used, would typically be imported or defined in the main entry point of the web application (e.g., `apps/web/src/main.tsx`) or a dedicated global CSS file that is then imported.
+
+- **Utility-First Approach**: Styling is primarily done by applying Tailwind's utility classes directly in the HTML/JSX markup of components.
+
+Refer to the configuration in `tools/tailwind/` for specifics on the theme and utilities available in the project.

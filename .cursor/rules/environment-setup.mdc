@@ -1,0 +1,69 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Environment Setup Guidelines
+
+## Environment Variables
+
+### Type Safety
+- Use Valibot for type-safe environment variables
+- Define schemas for all environment configurations
+- Validate at startup to fail fast
+
+### Required Variables
+
+#### Web Application
+- `PUBLIC_SERVER_URL`: Backend API server URL
+- `PUBLIC_BASE_PATH`: Base URL path for deployment
+
+#### Server
+- `SERVER_PORT`: Port for the server (default: 3035)
+- `SERVER_HOST`: Host for the server (default: localhost)
+- `SERVER_AUTH_SECRET`: Secret for authentication
+- `SERVER_POSTGRES_URL`: PostgreSQL connection URL
+- `PUBLIC_WEB_URL`: Web application URL
+
+#### Database
+Configure database connection in both locations:
+- `SERVER_POSTGRES_URL` in `apps/server/.env` for runtime
+- `DB_POSTGRES_URL` in `packages/db/.env` for migrations
+
+### Setup Process
+
+1. Copy example environment files:
+   ```bash
+   pnpm env:copy-example
+   ```
+
+2. Update environment variables with your values
+
+3. Verify configuration:
+   - Check database connectivity
+   - Validate API endpoints
+   - Confirm authentication setup
+
+## Local Development
+
+### Starting Services
+
+1. Start database (using Docker):
+   ```bash
+   docker compose up db --detach
+   ```
+
+2. Start all applications:
+   ```bash
+   pnpm dev
+   ```
+
+### Default Ports
+- Web application: http://localhost:8085
+- Backend server: http://localhost:3035
+- Database: Default PostgreSQL port (5432)
+
+## Related Documentation
+- [Database Integration](mdc:packages-db.mdc)
+- [Project Configuration](mdc:project-configuration.mdc)
+- [Server API Structure](mdc:server-api-structure.mdc)

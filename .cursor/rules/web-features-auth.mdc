@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Auth Feature Structure Guide
+
+The authentication feature is located in [apps/web/src/features/auth](mdc:apps/web/src/features/auth). It contains:
+
+- [login/](mdc:apps/web/src/features/auth/login): Login page logic and UI, including [login-form.tsx](mdc:apps/web/src/features/auth/login/components/login-form.tsx).
+- [register/](mdc:apps/web/src/features/auth/register): Registration page logic and UI, including [register-form.tsx](mdc:apps/web/src/features/auth/register/components/register-form.tsx).
+- [auth-container.tsx](mdc:apps/web/src/features/auth/auth-container.tsx): Shared container for authentication flows.

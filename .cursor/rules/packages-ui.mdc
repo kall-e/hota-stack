@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# UI Package Structure Guide
+
+The shared UI components, hooks, and library utilities for the project are centralized in the `packages/ui` directory.
+
+- **Components**: Reusable UI components are located in [packages/ui/src/components/](mdc:packages/ui/src/components). This includes general components and potentially specialized sets like [icons/](mdc:packages/ui/src/components/icons).
+- **Hooks**: Custom React hooks that provide reusable logic for UI components can be found in [packages/ui/src/hooks/](mdc:packages/ui/src/hooks).
+- **Lib**: Utility functions or helper modules specifically for the UI package are available in [packages/ui/src/lib/](mdc:packages/ui/src/lib).
+- **Tests**: Tests for the UI package components and hooks are in [packages/ui/tests/](mdc:packages/ui/tests).
+
+This package helps maintain a consistent look and feel across different parts of the application by providing a centralized library of UI elements and logic.

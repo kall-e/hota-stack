@@ -1,0 +1,21 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Testing Strategy Guide
+
+This project employs a multi-faceted testing strategy to ensure code quality and reliability. Different types of tests are organized as follows:
+
+- **End-to-End (E2E) Tests**:
+    - Located in [apps/web/tests/e2e/](mdc:apps/web/tests/e2e).
+    - These tests simulate real user scenarios through the web application's UI.
+    - Configuration for Playwright, the E2E testing framework, can be found in [tools/playwright-config/](mdc:tools/playwright-config).
+
+- **Package-Specific Tests (Unit/Integration)**:
+    - Each package typically contains its own tests directory.
+    - For example, API tests are in [packages/api/tests/](mdc:packages/api/tests) and UI component tests are in [packages/ui/tests/](mdc:packages/ui/tests).
+    - These tests focus on individual modules or the integration between them within a package.
+    - Configuration for Vitest, often used for unit and integration testing, can be found in [tools/vitest-config/](mdc:tools/vitest-config).
+
+Refer to these locations and configuration directories for details on running and writing tests for different parts of the application.

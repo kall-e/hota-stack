@@ -1,0 +1,130 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Backend Unit Testing Best Practices
+
+## Setup and Configuration
+
+- **Test Location**: Store unit tests in a `tests` directory within each package, following the same structure as the source code.
+  - Example: `packages/api/tests/` for API-related tests.
+
+- **Test Configuration**: Use Vitest as the testing framework, configured in [tools/vitest-config/](mdc:tools/vitest-config).
+  - The base configuration is defined in [tools/vitest-config/configs/base-config.ts](mdc:tools/vitest-config/configs/base-config.ts).
+
+- **Naming Conventions**:
+  - Test files should be named with `.test.ts` or `.spec.ts` suffix.
+  - Example: `user-service.test.ts` for testing `user-service.ts`.
+
+## Test Structure
+
+- **Organize tests by feature**: Group tests logically by feature or functionality.
+  ```typescript
+  describe('User Service', () => {
+    describe('createUser', () => {
+      // Tests for user creation
+    });
+    
+    describe('authenticateUser', () => {
+      // Tests for user authentication
+    });
+  });
+  ```
+
+- **Test Case Naming**: Use descriptive names that explain the expected behavior.
+  ```typescript
+  it('should return 400 when email is invalid', () => {
+    // Test implementation
+  });
+  ```
+
+## Testing Best Practices
+
+- **Isolation**: Each test should be independent and not rely on the state from previous tests.
+  - Reset any shared state between tests.
+  - Use `beforeEach` and `afterEach` hooks for setup and teardown.
+
+- **Mocking**:
+  - Mock external dependencies (databases, APIs, file system).
+  - Use dependency injection to facilitate mocking.
+  - Define mocks at the top of the test file or in a separate mocks directory.
+
+- **Database Testing**:
+  - Use an in-memory database or test database for integration tests.
+  - Reset the database state between tests.
+  - Example packages: `@prisma/client/testing` or a SQLite in-memory database.
+
+- **API Route Testing**:
+  - Test each endpoint's success and error cases.
+  - Test validation logic thoroughly.
+  - Ensure appropriate error responses are returned.
+
+## Coverage and Quality
+
+- **Coverage Targets**: Aim for at least 80% code coverage for critical backend services.
+  - Configure coverage reporting in [tools/vitest-config/configs/base-config.ts](mdc:tools/vitest-config/configs/base-config.ts).
+
+- **Edge Cases**: Include tests for edge cases and error conditions:
+  - Invalid inputs
+  - Empty or null values
+  - Authorization failures
+  - Resource not found scenarios
+
+- **Performance**: Include performance tests for critical endpoints or operations.
+
+## Example Test Pattern
+
+```typescript
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { UserService } from '../src/services/user-service';
+import { prismaMock } from '../__mocks__/prisma';
+
+// Mock dependencies
+vi.mock('@prisma/client', () => ({
+  PrismaClient: vi.fn().mockImplementation(() => prismaMock)
+}));
+
+describe('UserService', () => {
+  let userService: UserService;
+  
+  beforeEach(() => {
+    // Reset mocks before each test
+    vi.clearAllMocks();
+    userService = new UserService(prismaMock);
+  });
+  
+  describe('createUser', () => {
+    it('should create a user when valid data is provided', async () => {
+      // Arrange
+      const userData = { email: 'test@example.com', name: 'Test User', password: 'password123' };
+      prismaMock.user.create.mockResolvedValue({ id: '1', ...userData, password: 'hashed_password' });
+      
+      // Act
+      const result = await userService.createUser(userData);
+      
+      // Assert
+      expect(prismaMock.user.create).toHaveBeenCalledWith({ data: expect.objectContaining(userData) });
+      expect(result).toHaveProperty('id', '1');
+      expect(result).not.toHaveProperty('password'); // Ensure password is not returned
+    });
+    
+    it('should throw an error when email already exists', async () => {
+      // Arrange
+      const userData = { email: 'existing@example.com', name: 'Test User', password: 'password123' };
+      prismaMock.user.create.mockRejectedValue(new Error('Unique constraint failed on the fields: (`email`)'));
+      
+      // Act & Assert
+      await expect(userService.createUser(userData)).rejects.toThrow();
+    });
+  });
+});
+```
+
+## Continuous Integration
+
+- **Automated Testing**: Configure tests to run automatically with each pull request.
+- **Pre-commit Hooks**: Set up pre-commit hooks to run tests before code is committed.
+- **Test Reports**: Generate and store test reports for each build.
+
+Remember that unit tests should focus on testing the smallest units of functionality in isolation, typically individual functions, methods, or classes.
